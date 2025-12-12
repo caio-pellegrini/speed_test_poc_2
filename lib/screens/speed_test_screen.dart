@@ -148,33 +148,43 @@ class _SpeedTestScreenState extends State<SpeedTestScreen> {
                   const SizedBox(height: 10),
 
                   // Grid de Resultados
-                  GridView.count(
-                    shrinkWrap: true,
-                    physics: const NeverScrollableScrollPhysics(),
-                    crossAxisCount: 2,
-                    crossAxisSpacing: 10,
-                    mainAxisSpacing: 10,
-                    childAspectRatio: 1.1,
-                    children: [
-                      _buildMetricCard(
-                          "Download", _downloadRate, Icons.download, Colors.green),
-                      _buildMetricCard(
-                          "Upload", _uploadRate, Icons.upload, Colors.purple),
-                      _buildMetricInfo("Latência", 
-                          _latency == null 
-                              ? "-- ms"
-                              : _latency == -1 
-                                  ? "Erro"
-                                  : "$_latency ms",
-                          Icons.network_check, Colors.orange),
-                      _buildMetricInfo(
-                          "VPN",
-                          _latency != null && _latency! > 0 && _latency! < 100 
-                              ? "Estável" 
-                              : "Verificar",
-                          Icons.vpn_lock,
-                          Colors.blueGrey),
-                    ],
+                  LayoutBuilder(
+                    builder: (context, constraints) {
+                      // Determina o número de colunas baseado na largura da tela
+                      final screenWidth = MediaQuery.of(context).size.width;
+                      final crossAxisCount = screenWidth > 600 ? 4 : 2;
+                      // Ajusta o aspect ratio para telas largas
+                      final childAspectRatio = screenWidth > 600 ? 1.3 : 1.1;
+                      
+                      return GridView.count(
+                        shrinkWrap: true,
+                        physics: const NeverScrollableScrollPhysics(),
+                        crossAxisCount: crossAxisCount,
+                        crossAxisSpacing: 10,
+                        mainAxisSpacing: 10,
+                        childAspectRatio: childAspectRatio,
+                        children: [
+                          _buildMetricCard(
+                              "Download", _downloadRate, Icons.download, Colors.green),
+                          _buildMetricCard(
+                              "Upload", _uploadRate, Icons.upload, Colors.purple),
+                          _buildMetricInfo("Latência", 
+                              _latency == null 
+                                  ? "-- ms"
+                                  : _latency == -1 
+                                      ? "Erro"
+                                      : "$_latency ms",
+                              Icons.network_check, Colors.orange),
+                          _buildMetricInfo(
+                              "VPN",
+                              _latency != null && _latency! > 0 && _latency! < 100 
+                                  ? "Estável" 
+                                  : "Verificar",
+                              Icons.vpn_lock,
+                              Colors.blueGrey),
+                        ],
+                      );
+                    },
                   ),
 
                   const SizedBox(height: 20),
