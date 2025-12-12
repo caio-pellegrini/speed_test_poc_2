@@ -14,6 +14,9 @@ class _SpeedTestScreenState extends State<SpeedTestScreen> {
   final internetSpeedTest = FlutterInternetSpeedTest()..enableLog();
   final NetworkService _networkService = NetworkService();
 
+  // Multiplicador para ajuste da taxa de download
+  static const double _downloadRateMultiplier = 2.0;
+
   double _downloadRate = 0;
   double _uploadRate = 0;
   bool _isServerSelectionInProgress = false;
@@ -104,6 +107,7 @@ class _SpeedTestScreenState extends State<SpeedTestScreen> {
                   // Card de Status
                   Card(
                     elevation: 4,
+                    color: Colors.white,
                     shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(15)),
                     child: Padding(
@@ -122,8 +126,10 @@ class _SpeedTestScreenState extends State<SpeedTestScreen> {
                               const SizedBox(width: 12),
                               Expanded(
                                 child: Text(_status,
-                                    style: const TextStyle(
-                                        fontSize: 16, fontWeight: FontWeight.bold)),
+                                    style: TextStyle(
+                                        fontSize: 16, 
+                                        fontWeight: FontWeight.bold,
+                                        color: Colors.grey[800])),
                               ),
                             ],
                           ),
@@ -198,6 +204,7 @@ class _SpeedTestScreenState extends State<SpeedTestScreen> {
   Widget _buildConnectionCard() {
     return Card(
       elevation: 3,
+      color: Colors.white,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
@@ -245,6 +252,7 @@ class _SpeedTestScreenState extends State<SpeedTestScreen> {
   Widget _buildServerIpCard() {
     return Card(
       elevation: 3,
+      color: Colors.white,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
@@ -295,6 +303,7 @@ class _SpeedTestScreenState extends State<SpeedTestScreen> {
       String title, double value, IconData icon, Color color) {
     return Card(
       elevation: 2,
+      color: Colors.white,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
@@ -304,8 +313,10 @@ class _SpeedTestScreenState extends State<SpeedTestScreen> {
           Text(title, style: TextStyle(color: Colors.grey[600], fontSize: 14)),
           const SizedBox(height: 4),
           Text("${value.toStringAsFixed(1)} Mbps",
-              style:
-                  const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+              style: TextStyle(
+                  fontSize: 20, 
+                  fontWeight: FontWeight.bold,
+                  color: Colors.grey[800])),
         ],
       ),
     );
@@ -315,6 +326,7 @@ class _SpeedTestScreenState extends State<SpeedTestScreen> {
       String title, String value, IconData icon, Color color) {
     return Card(
       elevation: 2,
+      color: Colors.white,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
@@ -324,8 +336,10 @@ class _SpeedTestScreenState extends State<SpeedTestScreen> {
           Text(title, style: TextStyle(color: Colors.grey[600], fontSize: 14)),
           const SizedBox(height: 4),
           Text(value,
-              style:
-                  const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+              style: TextStyle(
+                  fontSize: 20, 
+                  fontWeight: FontWeight.bold,
+                  color: Colors.grey[800])),
         ],
       ),
     );
@@ -360,7 +374,7 @@ class _SpeedTestScreenState extends State<SpeedTestScreen> {
             _isTesting = false;
             _status = "Teste concluído";
             _downloadRate = double.parse(
-                (download.transferRate * 4.0).toStringAsPrecision(3));
+                (download.transferRate * _downloadRateMultiplier).toStringAsPrecision(3));
             _uploadRate =
                 double.parse(upload.transferRate.toStringAsPrecision(3));
           });
@@ -369,7 +383,7 @@ class _SpeedTestScreenState extends State<SpeedTestScreen> {
           setState(() {
             if (data.type == TestType.download) {
               _downloadRate = double.parse(
-                  (data.transferRate * 4.0).toStringAsPrecision(3));
+                  (data.transferRate * _downloadRateMultiplier).toStringAsPrecision(3));
               _status = "Testando download...";
             } else {
               _uploadRate =
