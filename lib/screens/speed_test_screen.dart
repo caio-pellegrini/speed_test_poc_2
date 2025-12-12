@@ -2,10 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_speed_test_plus/flutter_speed_test_plus.dart';
 import 'package:speed_test/services/network_service.dart';
 import 'package:speed_test/widgets/loading_widget.dart';
-import 'package:speed_test/widgets/result_widget.dart';
-import 'package:speed_test/widgets/run_test_widget.dart';
-import 'package:speed_test/widgets/space_widget.dart';
-import 'package:speed_test/widgets/speed_gauge_widget.dart';
 
 class SpeedTestScreen extends StatefulWidget {
   const SpeedTestScreen({super.key});
@@ -16,24 +12,20 @@ class SpeedTestScreen extends StatefulWidget {
 
 class _SpeedTestScreenState extends State<SpeedTestScreen> {
   final internetSpeedTest = FlutterInternetSpeedTest()..enableLog();
-  final PageController pageController = PageController();
   final NetworkService _networkService = NetworkService();
 
   double _downloadRate = 0;
   double _uploadRate = 0;
-  double _finalDownloadRate = 0;
-  double _finalUploadRate = 0;
   bool _isServerSelectionInProgress = false;
-  bool _runTest = false;
+  bool _isTesting = false;
   bool _runTestIsComplete = false;
 
-  String? _ip;
-  String _unit = 'Mbps';
+  String? _serverIp;
+  String _status = "Pronto para testar";
   
-  // Novas variáveis para tipo de conexão e latência
+  // Variáveis para tipo de conexão e latência
   Map<String, dynamic>? _connectionType;
   int? _latency;
-  bool _isTestingLatency = false;
 
   @override
   void initState() {
@@ -49,8 +41,19 @@ class _SpeedTestScreenState extends State<SpeedTestScreen> {
   }
 
 
-  IconData _getConnectionIcon(int iconIndex) {
-    switch (iconIndex) {
+  bool get _hasConnection {
+    return _connectionType != null && 
+           _connectionType!['type'] != 'Sem Conexão' &&
+           _connectionType!['type'] != 'Desconhecido';
+  }
+
+  String get _connectionName {
+    return _connectionType?['type'] ?? 'Carregando...';
+  }
+
+  IconData get _connectionIcon {
+    if (_connectionType == null) return Icons.help_outline;
+    switch (_connectionType!['icon']) {
       case 0: // Cabo (Ethernet)
         return Icons.cable;
       case 1: // Wi-Fi
@@ -66,306 +69,287 @@ class _SpeedTestScreenState extends State<SpeedTestScreen> {
     }
   }
 
+  Color get _connectionColor {
+    if (_connectionType == null) return Colors.grey;
+    switch (_connectionType!['icon']) {
+      case 0: // Cabo (Ethernet)
+        return Colors.green;
+      case 1: // Wi-Fi
+        return Colors.blue;
+      case 2: // Dados Móveis
+        return Colors.orange;
+      case 3: // Sem Conexão
+        return Colors.red;
+      case 4: // Bluetooth
+        return Colors.purple;
+      default:
+        return Colors.grey;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: Colors.grey[100],
       appBar: AppBar(
-        title: const Text('SPEED TEST'),
+        title: const Text("Diagnóstico de Rede - Totem"),
+        backgroundColor: Colors.blueAccent,
       ),
-      body: !_runTest
-          ? SingleChildScrollView(
+      body: _isServerSelectionInProgress
+          ? const LoadingWidget()
+          : SingleChildScrollView(
               padding: const EdgeInsets.all(20.0),
               child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  const SizedBox(height: 40),
-                  RunTestWidget(onTap: () {
-                    startTest();
-                  }),
-                  const SpaceWidget(),
-                  // Card de Tipo de Conexão
+                  // Card de Status
                   Card(
+                    elevation: 4,
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(15)),
                     child: Padding(
-                      padding: const EdgeInsets.all(16.0),
+                      padding: const EdgeInsets.all(18),
                       child: Column(
                         children: [
-                          Icon(
-                            _connectionType != null
-                                ? _getConnectionIcon(_connectionType!['icon'])
-                                : Icons.help_outline,
-                            color: Colors.cyanAccent,
-                            size: 30,
-                          ),
-                          const SpaceWidget(),
-                          const Text(
-                            "Tipo de Conexão",
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.cyanAccent,
-                            ),
-                          ),
-                          const SpaceWidget(),
-                          Text(
-                            _connectionType?['type'] ?? 'Carregando...',
-                            style: const TextStyle(
-                              fontSize: 14,
-                            ),
+                          // Ícone e Status em Row
+                          Row(
+                            children: [
+                              if (_isTesting)
+                                const Icon(Icons.speed,
+                                    size: 40, color: Colors.blueAccent)
+                              else
+                                Icon(Icons.check_circle_outline,
+                                    size: 40, color: Colors.grey[400]),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Text(_status,
+                                    style: const TextStyle(
+                                        fontSize: 16, fontWeight: FontWeight.bold)),
+                              ),
+                            ],
                           ),
                         ],
                       ),
                     ),
                   ),
-                  const SpaceWidget(),
-                  // Card de Latência
-                  Card(
-                    child: Padding(
-                      padding: const EdgeInsets.all(16.0),
-                      child: Column(
-                        children: [
-                          const Icon(
-                            Icons.speed,
-                            color: Colors.orangeAccent,
-                            size: 30,
-                          ),
-                          const SpaceWidget(),
-                          const Text(
-                            "Latência (Ping)",
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.orangeAccent,
-                            ),
-                          ),
-                          const SpaceWidget(),
-                          Text(
-                            _latency == null
-                                ? '--'
-                                : _latency == -1
-                                    ? 'Erro'
-                                    : '${_latency} ms',
-                            style: const TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                  const SpaceWidget(),
-                ],
-              ),
-            )
-          : _isServerSelectionInProgress
-              ? const LoadingWidget()
-              : SingleChildScrollView(
-                  padding: const EdgeInsets.all(20.0),
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
+                  const SizedBox(height: 10),
+                  
+                  // Card de Conexão
+                  _buildConnectionCard(),
+                  const SizedBox(height: 10),
+
+                  // Card de Endereço IP
+                  _buildServerIpCard(),
+                  const SizedBox(height: 10),
+
+                  // Grid de Resultados
+                  GridView.count(
+                    shrinkWrap: true,
+                    physics: const NeverScrollableScrollPhysics(),
+                    crossAxisCount: 2,
+                    crossAxisSpacing: 10,
+                    mainAxisSpacing: 10,
+                    childAspectRatio: 1.1,
                     children: [
-                      _runTestIsComplete
-                          ? Column(
-                              children: [
-                                ResultWidget(
-                                  downloadRate: _finalDownloadRate,
-                                  uploadRate: _finalUploadRate,
-                                  unit: _unit,
-                                ),
-                                const SpaceWidget(),
-                                Padding(
-                                  padding: const EdgeInsets.symmetric(
-                                    vertical: 80.0,
-                                  ),
-                                  child: RunTestWidget(onTap: () {
-                                    startTest();
-                                  }),
-                                )
-                              ],
-                            )
-                          : Padding(
-                              padding: const EdgeInsets.symmetric(
-                                vertical: 16.0,
-                              ),
-                              child: SizedBox(
-                                height: 400,
-                                child: PageView(
-                                  controller: pageController,
-                                  physics: const NeverScrollableScrollPhysics(),
-                                  children: [
-                                    Column(
-                                      children: <Widget>[
-                                        const Text(
-                                          "Download Speed",
-                                          style: TextStyle(
-                                            color: Colors.cyanAccent,
-                                            fontWeight: FontWeight.bold,
-                                            fontSize: 30.0,
-                                          ),
-                                        ),
-                                        const SpaceWidget(),
-                                        SpeedGaugeWidget(
-                                          value: _downloadRate,
-                                          unit: _unit,
-                                          pointerColor: Colors.cyanAccent,
-                                        ),
-                                      ],
-                                    ),
-                                    Column(
-                                      children: <Widget>[
-                                        const Text(
-                                          "Upload Speed",
-                                          style: TextStyle(
-                                            color: Colors.purpleAccent,
-                                            fontWeight: FontWeight.bold,
-                                            fontSize: 30.0,
-                                          ),
-                                        ),
-                                        const SpaceWidget(),
-                                        SpeedGaugeWidget(
-                                          value: _uploadRate,
-                                          unit: _unit,
-                                          pointerColor: Colors.purpleAccent,
-                                          enableLoadingAnimation: false,
-                                        ),
-                                      ],
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ),
-                      const SpaceWidget(),
-                      // Card de Tipo de Conexão
-                      Card(
-                        child: Padding(
-                          padding: const EdgeInsets.all(16.0),
-                          child: Column(
-                            children: [
-                              Icon(
-                                _connectionType != null
-                                    ? _getConnectionIcon(_connectionType!['icon'])
-                                    : Icons.help_outline,
-                                color: Colors.cyanAccent,
-                                size: 30,
-                              ),
-                              const SpaceWidget(),
-                              const Text(
-                                "Tipo de Conexão",
-                                style: TextStyle(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.bold,
-                                  color: Colors.cyanAccent,
-                                ),
-                              ),
-                              const SpaceWidget(),
-                              Text(
-                                _connectionType?['type'] ?? 'Carregando...',
-                                style: const TextStyle(
-                                  fontSize: 14,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                      const SpaceWidget(),
-                      // Card de Latência
-                      Card(
-                        child: Padding(
-                          padding: const EdgeInsets.all(16.0),
-                          child: Column(
-                            children: [
-                              const Icon(
-                                Icons.speed,
-                                color: Colors.orangeAccent,
-                                size: 30,
-                              ),
-                              const SpaceWidget(),
-                              const Text(
-                                "Latência (Ping)",
-                                style: TextStyle(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.bold,
-                                  color: Colors.orangeAccent,
-                                ),
-                              ),
-                              const SpaceWidget(),
-                              _isTestingLatency
-                                  ? const SizedBox(
-                                      width: 20,
-                                      height: 20,
-                                      child: CircularProgressIndicator(
-                                        strokeWidth: 2,
-                                      ),
-                                    )
-                                  : Text(
-                                      _latency == null
-                                          ? '--'
-                                          : _latency == -1
-                                              ? 'Erro'
-                                              : '${_latency} ms',
-                                      style: const TextStyle(
-                                        fontSize: 18,
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                    ),
-                            ],
-                          ),
-                        ),
-                      ),
-                      const SpaceWidget(),
-                      // Card de IP Address
-                      Card(
-                        child: Padding(
-                          padding: const EdgeInsets.all(16.0),
-                          child: Column(
-                            children: [
-                              const Icon(
-                                Icons.public,
-                                color: Colors.cyanAccent,
-                                size: 30,
-                              ),
-                              const SpaceWidget(),
-                              const Text(
-                                "IP Address",
-                                style: TextStyle(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.bold,
-                                  color: Colors.cyanAccent,
-                                ),
-                              ),
-                              const SpaceWidget(),
-                              Text(
-                                _ip ?? '--',
-                                style: const TextStyle(
-                                  fontSize: 14,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                      const SpaceWidget(),
+                      _buildMetricCard(
+                          "Download", _downloadRate, Icons.download, Colors.green),
+                      _buildMetricCard(
+                          "Upload", _uploadRate, Icons.upload, Colors.purple),
+                      _buildMetricInfo("Latência", 
+                          _latency == null 
+                              ? "-- ms"
+                              : _latency == -1 
+                                  ? "Erro"
+                                  : "$_latency ms",
+                          Icons.network_check, Colors.orange),
+                      _buildMetricInfo(
+                          "VPN",
+                          _latency != null && _latency! > 0 && _latency! < 100 
+                              ? "Estável" 
+                              : "Verificar",
+                          Icons.vpn_lock,
+                          Colors.blueGrey),
                     ],
                   ),
-                ),
+
+                  const SizedBox(height: 20),
+
+                  // Botão
+                  SizedBox(
+                    width: double.infinity,
+                    height: 55,
+                    child: ElevatedButton(
+                      onPressed: (_isTesting || !_hasConnection) ? null : _runTest,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.blueAccent,
+                        disabledBackgroundColor: Colors.grey[400],
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10)),
+                      ),
+                      child: Text(_hasConnection ? "INICIAR TESTE" : "SEM CONEXÃO",
+                          style: const TextStyle(color: Colors.white, fontSize: 16)),
+                    ),
+                  ),
+                ],
+              ),
+            ),
     );
   }
 
-  Future<void> startTest() async {
+  Widget _buildConnectionCard() {
+    return Card(
+      elevation: 3,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: _connectionColor.withOpacity(0.12),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(_connectionIcon, color: _connectionColor, size: 22),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    "Conexão atual",
+                    style: TextStyle(
+                      fontSize: 13,
+                      color: Colors.grey[600],
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    _connectionName,
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: _connectionColor,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildServerIpCard() {
+    return Card(
+      elevation: 3,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: Colors.blue.withOpacity(0.12),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(Icons.language, color: Colors.blue, size: 22),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    "Endereço IP",
+                    style: TextStyle(
+                      fontSize: 13,
+                      color: Colors.grey[600],
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    _isServerSelectionInProgress
+                        ? "Selecionando servidor..."
+                        : (_serverIp ?? "--"),
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.blue,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildMetricCard(
+      String title, double value, IconData icon, Color color) {
+    return Card(
+      elevation: 2,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(icon, size: 35, color: color),
+          const SizedBox(height: 8),
+          Text(title, style: TextStyle(color: Colors.grey[600], fontSize: 14)),
+          const SizedBox(height: 4),
+          Text("${value.toStringAsFixed(1)} Mbps",
+              style:
+                  const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildMetricInfo(
+      String title, String value, IconData icon, Color color) {
+    return Card(
+      elevation: 2,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(icon, size: 35, color: color),
+          const SizedBox(height: 8),
+          Text(title, style: TextStyle(color: Colors.grey[600], fontSize: 14)),
+          const SizedBox(height: 4),
+          Text(value,
+              style:
+                  const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _runTest() async {
     WidgetsBinding.instance.addPostFrameCallback((_) async {
+      // Verifica o tipo de conexão antes de iniciar o teste
+      await _loadConnectionType();
+      
       setState(() {
-        _runTest = true;
+        _isTesting = true;
         _runTestIsComplete = false;
+        _downloadRate = 0;
+        _uploadRate = 0;
         _latency = null;
-        _isTestingLatency = true;
+        _status = "Testando latência...";
       });
       
       // Executa o teste de latência antes do teste de velocidade
       final latency = await _networkService.testLatency();
       setState(() {
         _latency = latency;
-        _isTestingLatency = false;
+        _status = "Testando velocidade...";
       });
       
       await internetSpeedTest.startTesting(
@@ -373,9 +357,11 @@ class _SpeedTestScreenState extends State<SpeedTestScreen> {
         onCompleted: (download, upload) {
           setState(() {
             _runTestIsComplete = true;
-            _finalDownloadRate = double.parse(
+            _isTesting = false;
+            _status = "Teste concluído";
+            _downloadRate = double.parse(
                 (download.transferRate * 4.0).toStringAsPrecision(3));
-            _finalUploadRate =
+            _uploadRate =
                 double.parse(upload.transferRate.toStringAsPrecision(3));
           });
         },
@@ -384,29 +370,24 @@ class _SpeedTestScreenState extends State<SpeedTestScreen> {
             if (data.type == TestType.download) {
               _downloadRate = double.parse(
                   (data.transferRate * 4.0).toStringAsPrecision(3));
-              pageController.animateToPage(
-                0,
-                duration: const Duration(milliseconds: 100),
-                curve: Curves.decelerate,
-              );
+              _status = "Testando download...";
             } else {
               _uploadRate =
                   double.parse(data.transferRate.toStringAsPrecision(3));
-              pageController.animateToPage(
-                1,
-                duration: const Duration(milliseconds: 100),
-                curve: Curves.decelerate,
-              );
+              _status = "Testando upload...";
             }
           });
         },
         onDefaultServerSelectionInProgress: () {
-          setState(() => _isServerSelectionInProgress = true);
+          setState(() {
+            _isServerSelectionInProgress = true;
+            _status = "Selecionando servidor...";
+          });
         },
         onDefaultServerSelectionDone: (client) {
           setState(() {
             _isServerSelectionInProgress = false;
-            _ip = client?.ip;
+            _serverIp = client?.ip;
           });
         },
         onError: (errorMessage, speedTestError) {
@@ -423,10 +404,10 @@ class _SpeedTestScreenState extends State<SpeedTestScreen> {
     setState(() {
       _downloadRate = 0;
       _uploadRate = 0;
-      _unit = 'Mbps';
-      _ip = null;
-      _runTest = false;
+      _serverIp = null;
+      _isTesting = false;
       _latency = null;
+      _status = "Pronto para testar";
     });
     _loadConnectionType();
   }
