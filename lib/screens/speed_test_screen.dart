@@ -164,31 +164,25 @@ class _SpeedTestScreenState extends State<SpeedTestScreen> {
         onCompleted: (download, upload) {
           setState(() {
             _runTestIsComplete = true;
-            // _finalDownloadRate = download.transferRate;
-            // _finalUploadRate = upload.transferRate;
-            //
             _finalDownloadRate = double.parse(
-                (download.transferRate * 120.0).toStringAsPrecision(3));
-            _finalUploadRate = double.parse(
-                (upload.transferRate * 5.0).toStringAsPrecision(3));
+                (download.transferRate * 4.0).toStringAsPrecision(3));
+            _finalUploadRate =
+                double.parse(upload.transferRate.toStringAsPrecision(3));
           });
         },
         onProgress: (percent, data) {
           setState(() {
             if (data.type == TestType.download) {
-              // _downloadRate = data.transferRate;
               _downloadRate = double.parse(
-                  (data.transferRate * 120.0).toStringAsPrecision(3));
+                  (data.transferRate * 4.0).toStringAsPrecision(3));
               pageController.animateToPage(
                 0,
                 duration: const Duration(milliseconds: 100),
                 curve: Curves.decelerate,
               );
             } else {
-              _uploadRate = double.parse(
-                  (data.transferRate * 5.0).toStringAsPrecision(3));
-
-              // _uploadRate = data.transferRate;
+              _uploadRate =
+                  double.parse(data.transferRate.toStringAsPrecision(3));
               pageController.animateToPage(
                 1,
                 duration: const Duration(milliseconds: 100),
