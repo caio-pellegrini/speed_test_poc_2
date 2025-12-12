@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_speed_test_plus/flutter_speed_test_plus.dart';
+import 'package:speed_test/services/network_service.dart';
 import 'package:speed_test/widgets/loading_widget.dart';
 import 'package:speed_test/widgets/result_widget.dart';
 import 'package:speed_test/widgets/run_test_widget.dart';
@@ -16,6 +17,7 @@ class SpeedTestScreen extends StatefulWidget {
 class _SpeedTestScreenState extends State<SpeedTestScreen> {
   final internetSpeedTest = FlutterInternetSpeedTest()..enableLog();
   final PageController pageController = PageController();
+  final NetworkService _networkService = NetworkService();
 
   double _downloadRate = 0;
   double _uploadRate = 0;
@@ -27,6 +29,55 @@ class _SpeedTestScreenState extends State<SpeedTestScreen> {
 
   String? _ip;
   String _unit = 'Mbps';
+  
+  // Novas variáveis para tipo de conexão e latência
+  Map<String, dynamic>? _connectionType;
+  int? _latency;
+  bool _isTestingLatency = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadConnectionType();
+  }
+
+  Future<void> _loadConnectionType() async {
+    final connectionType = await _networkService.getConnectionType();
+    setState(() {
+      _connectionType = connectionType;
+    });
+  }
+
+  Future<void> _testLatency() async {
+    setState(() {
+      _isTestingLatency = true;
+      _latency = null;
+    });
+    
+    final latency = await _networkService.testLatency();
+    
+    setState(() {
+      _latency = latency;
+      _isTestingLatency = false;
+    });
+  }
+
+  IconData _getConnectionIcon(int iconIndex) {
+    switch (iconIndex) {
+      case 0: // Cabo (Ethernet)
+        return Icons.cable;
+      case 1: // Wi-Fi
+        return Icons.wifi;
+      case 2: // Dados Móveis
+        return Icons.signal_cellular_alt;
+      case 3: // Sem Conexão
+        return Icons.signal_wifi_off;
+      case 4: // Bluetooth
+        return Icons.bluetooth;
+      default:
+        return Icons.help_outline;
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -35,9 +86,108 @@ class _SpeedTestScreenState extends State<SpeedTestScreen> {
         title: const Text('SPEED TEST'),
       ),
       body: !_runTest
-          ? RunTestWidget(onTap: () {
-              startTest();
-            })
+          ? SingleChildScrollView(
+              padding: const EdgeInsets.all(20.0),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const SizedBox(height: 40),
+                  RunTestWidget(onTap: () {
+                    startTest();
+                  }),
+                  const SpaceWidget(),
+                  // Card de Tipo de Conexão
+                  Card(
+                    child: Padding(
+                      padding: const EdgeInsets.all(16.0),
+                      child: Column(
+                        children: [
+                          Icon(
+                            _connectionType != null
+                                ? _getConnectionIcon(_connectionType!['icon'])
+                                : Icons.help_outline,
+                            color: Colors.cyanAccent,
+                            size: 30,
+                          ),
+                          const SpaceWidget(),
+                          const Text(
+                            "Tipo de Conexão",
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.cyanAccent,
+                            ),
+                          ),
+                          const SpaceWidget(),
+                          Text(
+                            _connectionType?['type'] ?? 'Carregando...',
+                            style: const TextStyle(
+                              fontSize: 14,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  const SpaceWidget(),
+                  // Card de Latência
+                  Card(
+                    child: Padding(
+                      padding: const EdgeInsets.all(16.0),
+                      child: Column(
+                        children: [
+                          const Icon(
+                            Icons.speed,
+                            color: Colors.orangeAccent,
+                            size: 30,
+                          ),
+                          const SpaceWidget(),
+                          const Text(
+                            "Latência (Ping)",
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.orangeAccent,
+                            ),
+                          ),
+                          const SpaceWidget(),
+                          _isTestingLatency
+                              ? const SizedBox(
+                                  width: 20,
+                                  height: 20,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                  ),
+                                )
+                              : Text(
+                                  _latency == null
+                                      ? '--'
+                                      : _latency == -1
+                                          ? 'Erro'
+                                          : '${_latency} ms',
+                                  style: const TextStyle(
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                          const SpaceWidget(),
+                          ElevatedButton.icon(
+                            onPressed: _isTestingLatency ? null : _testLatency,
+                            icon: const Icon(Icons.refresh),
+                            label: const Text('Testar Latência'),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.orangeAccent,
+                              foregroundColor: Colors.black,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  const SpaceWidget(),
+                ],
+              ),
+            )
           : _isServerSelectionInProgress
               ? const LoadingWidget()
               : SingleChildScrollView(
@@ -116,6 +266,96 @@ class _SpeedTestScreenState extends State<SpeedTestScreen> {
                               ),
                             ),
                       const SpaceWidget(),
+                      // Card de Tipo de Conexão
+                      Card(
+                        child: Padding(
+                          padding: const EdgeInsets.all(16.0),
+                          child: Column(
+                            children: [
+                              Icon(
+                                _connectionType != null
+                                    ? _getConnectionIcon(_connectionType!['icon'])
+                                    : Icons.help_outline,
+                                color: Colors.cyanAccent,
+                                size: 30,
+                              ),
+                              const SpaceWidget(),
+                              const Text(
+                                "Tipo de Conexão",
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.cyanAccent,
+                                ),
+                              ),
+                              const SpaceWidget(),
+                              Text(
+                                _connectionType?['type'] ?? 'Carregando...',
+                                style: const TextStyle(
+                                  fontSize: 14,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                      const SpaceWidget(),
+                      // Card de Latência
+                      Card(
+                        child: Padding(
+                          padding: const EdgeInsets.all(16.0),
+                          child: Column(
+                            children: [
+                              const Icon(
+                                Icons.speed,
+                                color: Colors.orangeAccent,
+                                size: 30,
+                              ),
+                              const SpaceWidget(),
+                              const Text(
+                                "Latência (Ping)",
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.orangeAccent,
+                                ),
+                              ),
+                              const SpaceWidget(),
+                              _isTestingLatency
+                                  ? const SizedBox(
+                                      width: 20,
+                                      height: 20,
+                                      child: CircularProgressIndicator(
+                                        strokeWidth: 2,
+                                      ),
+                                    )
+                                  : Text(
+                                      _latency == null
+                                          ? '--'
+                                          : _latency == -1
+                                              ? 'Erro'
+                                              : '${_latency} ms',
+                                      style: const TextStyle(
+                                        fontSize: 18,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                              const SpaceWidget(),
+                              ElevatedButton.icon(
+                                onPressed: _isTestingLatency ? null : _testLatency,
+                                icon: const Icon(Icons.refresh),
+                                label: const Text('Testar Latência'),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: Colors.orangeAccent,
+                                  foregroundColor: Colors.black,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                      const SpaceWidget(),
+                      // Card de IP Address
                       Card(
                         child: Padding(
                           padding: const EdgeInsets.all(16.0),
@@ -217,6 +457,8 @@ class _SpeedTestScreenState extends State<SpeedTestScreen> {
       _unit = 'Mbps';
       _ip = null;
       _runTest = false;
+      _latency = null;
     });
+    _loadConnectionType();
   }
 }

@@ -50,7 +50,7 @@ packages:
     source: hosted
     version: "1.18.0"
   connectivity_plus:
-    dependency: transitive
+    dependency: "direct main"
     description:
       name: connectivity_plus
       sha256: "876849631b0c7dc20f8b471a2a03142841b482438e3b707955464f5ffca3e4c3"
@@ -65,6 +65,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "2.0.1"
+  dart_ping:
+    dependency: "direct main"
+    description:
+      name: dart_ping
+      sha256: "2f5418d0a5c64e53486caaac78677b25725b1e13c33c5be834ce874ea18bd24f"
+      url: "https://pub.dev"
+    source: hosted
+    version: "9.0.1"
   dbus:
     dependency: transitive
     description:
