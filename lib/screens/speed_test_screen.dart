@@ -48,19 +48,6 @@ class _SpeedTestScreenState extends State<SpeedTestScreen> {
     });
   }
 
-  Future<void> _testLatency() async {
-    setState(() {
-      _isTestingLatency = true;
-      _latency = null;
-    });
-    
-    final latency = await _networkService.testLatency();
-    
-    setState(() {
-      _latency = latency;
-      _isTestingLatency = false;
-    });
-  }
 
   IconData _getConnectionIcon(int iconIndex) {
     switch (iconIndex) {
@@ -151,33 +138,15 @@ class _SpeedTestScreenState extends State<SpeedTestScreen> {
                             ),
                           ),
                           const SpaceWidget(),
-                          _isTestingLatency
-                              ? const SizedBox(
-                                  width: 20,
-                                  height: 20,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2,
-                                  ),
-                                )
-                              : Text(
-                                  _latency == null
-                                      ? '--'
-                                      : _latency == -1
-                                          ? 'Erro'
-                                          : '${_latency} ms',
-                                  style: const TextStyle(
-                                    fontSize: 18,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                          const SpaceWidget(),
-                          ElevatedButton.icon(
-                            onPressed: _isTestingLatency ? null : _testLatency,
-                            icon: const Icon(Icons.refresh),
-                            label: const Text('Testar Latência'),
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.orangeAccent,
-                              foregroundColor: Colors.black,
+                          Text(
+                            _latency == null
+                                ? '--'
+                                : _latency == -1
+                                    ? 'Erro'
+                                    : '${_latency} ms',
+                            style: const TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
                             ),
                           ),
                         ],
@@ -340,16 +309,6 @@ class _SpeedTestScreenState extends State<SpeedTestScreen> {
                                         fontWeight: FontWeight.bold,
                                       ),
                                     ),
-                              const SpaceWidget(),
-                              ElevatedButton.icon(
-                                onPressed: _isTestingLatency ? null : _testLatency,
-                                icon: const Icon(Icons.refresh),
-                                label: const Text('Testar Latência'),
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: Colors.orangeAccent,
-                                  foregroundColor: Colors.black,
-                                ),
-                              ),
                             ],
                           ),
                         ),
@@ -398,7 +357,17 @@ class _SpeedTestScreenState extends State<SpeedTestScreen> {
       setState(() {
         _runTest = true;
         _runTestIsComplete = false;
+        _latency = null;
+        _isTestingLatency = true;
       });
+      
+      // Executa o teste de latência antes do teste de velocidade
+      final latency = await _networkService.testLatency();
+      setState(() {
+        _latency = latency;
+        _isTestingLatency = false;
+      });
+      
       await internetSpeedTest.startTesting(
         useFastApi: true,
         onCompleted: (download, upload) {
