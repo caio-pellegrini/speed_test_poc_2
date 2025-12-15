@@ -32,6 +32,7 @@ class _SpeedTestScreenState extends State<SpeedTestScreen> {
   int? _latency;
   Map<String, dynamic>? _wifiInfo;
   Map<String, dynamic>? _mobileInfo;
+  Map<String, dynamic>? _ethernetInfo;
 
   // Stream subscription para monitorar mudanças de conectividade
   StreamSubscription<Map<String, dynamic>>? _connectivitySubscription;
@@ -58,18 +59,28 @@ class _SpeedTestScreenState extends State<SpeedTestScreen> {
           _loadWiFiInfo();
           setState(() {
             _mobileInfo = null;
+            _ethernetInfo = null;
           });
         } else if (connectionType['type'] == 'Dados Móveis') {
           // Se mudou para dados móveis, carrega informações detalhadas
           _loadMobileInfo();
           setState(() {
             _wifiInfo = null;
+            _ethernetInfo = null;
+          });
+        } else if (connectionType['type'] == 'Cabo (Ethernet)') {
+          // Se mudou para Ethernet, carrega informações detalhadas
+          _loadEthernetInfo();
+          setState(() {
+            _wifiInfo = null;
+            _mobileInfo = null;
           });
         } else {
           // Se mudou para outro tipo, limpa as informações
           setState(() {
             _wifiInfo = null;
             _mobileInfo = null;
+            _ethernetInfo = null;
           });
         }
       },
@@ -94,17 +105,27 @@ class _SpeedTestScreenState extends State<SpeedTestScreen> {
       await _loadWiFiInfo();
       setState(() {
         _mobileInfo = null;
+        _ethernetInfo = null;
       });
     } else if (connectionType['type'] == 'Dados Móveis') {
       // Se estiver conectado via dados móveis, carrega informações detalhadas
       await _loadMobileInfo();
       setState(() {
         _wifiInfo = null;
+        _ethernetInfo = null;
+      });
+    } else if (connectionType['type'] == 'Cabo (Ethernet)') {
+      // Se estiver conectado via Ethernet, carrega informações detalhadas
+      await _loadEthernetInfo();
+      setState(() {
+        _wifiInfo = null;
+        _mobileInfo = null;
       });
     } else {
       setState(() {
         _wifiInfo = null;
         _mobileInfo = null;
+        _ethernetInfo = null;
       });
     }
   }
@@ -120,6 +141,13 @@ class _SpeedTestScreenState extends State<SpeedTestScreen> {
     final mobileInfo = await _networkService.getMobileInfo();
     setState(() {
       _mobileInfo = mobileInfo;
+    });
+  }
+
+  Future<void> _loadEthernetInfo() async {
+    final ethernetInfo = await _networkService.getEthernetInfo();
+    setState(() {
+      _ethernetInfo = ethernetInfo;
     });
   }
 
@@ -218,23 +246,9 @@ class _SpeedTestScreenState extends State<SpeedTestScreen> {
                   ),
                   const SizedBox(height: 10),
 
-                  // Card de Conexão
+                  // Card de Conexão (com informações técnicas)
                   _buildConnectionCard(),
                   const SizedBox(height: 10),
-
-                  // Card de Informações Wi-Fi (apenas se conectado via Wi-Fi)
-                  if (_connectionType?['type'] == 'Wi-Fi' &&
-                      _wifiInfo != null) ...[
-                    _buildWiFiInfoCard(),
-                    const SizedBox(height: 10),
-                  ],
-
-                  // Card de Informações de Dados Móveis (apenas se conectado via dados móveis)
-                  if (_connectionType?['type'] == 'Dados Móveis' &&
-                      _mobileInfo != null) ...[
-                    _buildMobileInfoCard(),
-                    const SizedBox(height: 10),
-                  ],
                   // Card de Endereço IP
                   if (_serverIp != null) ...[
                     _buildServerIpCard(),
@@ -313,55 +327,14 @@ class _SpeedTestScreenState extends State<SpeedTestScreen> {
   }
 
   Widget _buildConnectionCard() {
-    return Card(
-      elevation: 3,
-      color: Colors.white,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-        child: Row(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(10),
-              decoration: BoxDecoration(
-                color: _connectionColor.withOpacity(0.12),
-                shape: BoxShape.circle,
-              ),
-              child: Icon(_connectionIcon, color: _connectionColor, size: 22),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    "Conexão atual",
-                    style: TextStyle(
-                      fontSize: 13,
-                      color: Colors.grey[600],
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    _connectionName,
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                      color: _connectionColor,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildWiFiInfoCard() {
-    final hasError = _wifiInfo?.containsKey('error') ?? false;
+    // Determina quais informações técnicas exibir
+    final connectionType = _connectionType?['type'];
+    final hasWiFiInfo = connectionType == 'Wi-Fi' && _wifiInfo != null;
+    final hasMobileInfo =
+        connectionType == 'Dados Móveis' && _mobileInfo != null;
+    final hasEthernetInfo =
+        connectionType == 'Cabo (Ethernet)' && _ethernetInfo != null;
+    final hasTechnicalInfo = hasWiFiInfo || hasMobileInfo || hasEthernetInfo;
 
     return Card(
       elevation: 3,
@@ -372,56 +345,52 @@ class _SpeedTestScreenState extends State<SpeedTestScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            // Cabeçalho: Tipo de conexão
             Row(
               children: [
                 Container(
                   padding: const EdgeInsets.all(10),
                   decoration: BoxDecoration(
-                    color: Colors.blue.withOpacity(0.12),
+                    color: _connectionColor.withOpacity(0.12),
                     shape: BoxShape.circle,
                   ),
-                  child: const Icon(Icons.wifi, color: Colors.blue, size: 22),
+                  child:
+                      Icon(_connectionIcon, color: _connectionColor, size: 22),
                 ),
                 const SizedBox(width: 12),
-                const Text(
-                  "Informações da Rede Wi-Fi",
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.blue,
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        "Conexão atual",
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: Colors.grey[600],
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        _connectionName,
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          color: _connectionColor,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
               ],
             ),
-            const SizedBox(height: 16),
-            if (hasError)
-              Text(
-                _wifiInfo!['error'] ?? 'Erro ao obter informações',
-                style: const TextStyle(
-                  fontSize: 14,
-                  color: Colors.red,
-                ),
-              )
-            else ...[
-              _buildWiFiInfoRow("SSID", _wifiInfo!['ssid'] ?? '--'),
-              const SizedBox(height: 8),
-              _buildWiFiInfoRow("BSSID", _wifiInfo!['bssid'] ?? '--'),
-              const SizedBox(height: 8),
-              _buildWiFiInfoRow(
-                "Sinal",
-                _wifiInfo!['signal'] != null
-                    ? "${_wifiInfo!['signal']} dBm"
-                    : '--',
-              ),
-              const SizedBox(height: 8),
-              _buildWiFiInfoRow(
-                "Frequência",
-                _wifiInfo!['frequency'] != null
-                    ? "${_wifiInfo!['frequency']} MHz"
-                    : '--',
-              ),
-              const SizedBox(height: 8),
-              _buildWiFiInfoRow("IP", _wifiInfo!['ip'] ?? '--'),
+            // Informações técnicas (se disponíveis)
+            if (hasTechnicalInfo) ...[
+              const Divider(height: 24),
+              if (hasWiFiInfo) _buildTechnicalInfo(_wifiInfo!, 'Wi-Fi'),
+              if (hasMobileInfo) _buildTechnicalInfo(_mobileInfo!, 'Mobile'),
+              if (hasEthernetInfo)
+                _buildTechnicalInfo(_ethernetInfo!, 'Ethernet'),
             ],
           ],
         ),
@@ -429,69 +398,75 @@ class _SpeedTestScreenState extends State<SpeedTestScreen> {
     );
   }
 
-  Widget _buildMobileInfoCard() {
-    final hasError = _mobileInfo?.containsKey('error') ?? false;
+  Widget _buildTechnicalInfo(Map<String, dynamic> info, String type) {
+    final hasError = info.containsKey('error');
 
-    return Card(
-      elevation: 3,
-      color: Colors.white,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(10),
-                  decoration: BoxDecoration(
-                    color: Colors.orange.withOpacity(0.12),
-                    shape: BoxShape.circle,
-                  ),
-                  child: const Icon(Icons.signal_cellular_alt,
-                      color: Colors.orange, size: 22),
-                ),
-                const SizedBox(width: 12),
-                const Text(
-                  "Informações de Dados Móveis",
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.orange,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
-            if (hasError)
-              Text(
-                _mobileInfo!['error'] ?? 'Erro ao obter informações',
-                style: const TextStyle(
-                  fontSize: 14,
-                  color: Colors.red,
-                ),
-              )
-            else ...[
-              _buildWiFiInfoRow("Operadora", _mobileInfo!['carrier'] ?? '--'),
-              const SizedBox(height: 8),
-              _buildWiFiInfoRow(
-                  "Tipo de Rede", _mobileInfo!['networkType'] ?? '--'),
-              const SizedBox(height: 8),
-              if (_mobileInfo!['simState'] != null) ...[
-                _buildWiFiInfoRow(
-                    "Estado SIM", _mobileInfo!['simState'] ?? '--'),
-                const SizedBox(height: 8),
-              ],
-              _buildWiFiInfoRow("IP", _mobileInfo!['ip'] ?? '--'),
-            ],
-          ],
+    if (hasError) {
+      return Padding(
+        padding: const EdgeInsets.only(top: 8),
+        child: Text(
+          info['error'] ?? 'Erro ao obter informações',
+          style: const TextStyle(
+            fontSize: 13,
+            color: Colors.red,
+          ),
         ),
-      ),
-    );
+      );
+    }
+
+    if (type == 'Wi-Fi') {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _buildInfoRow("SSID", info['ssid'] ?? '--'),
+          const SizedBox(height: 6),
+          _buildInfoRow("BSSID", info['bssid'] ?? '--'),
+          const SizedBox(height: 6),
+          _buildInfoRow(
+            "Sinal",
+            info['signal'] != null ? "${info['signal']} dBm" : '--',
+          ),
+          const SizedBox(height: 6),
+          _buildInfoRow(
+            "Frequência",
+            info['frequency'] != null ? "${info['frequency']} MHz" : '--',
+          ),
+          const SizedBox(height: 6),
+          _buildInfoRow("IP", info['ip'] ?? '--'),
+        ],
+      );
+    } else if (type == 'Mobile') {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _buildInfoRow("Operadora", info['carrier'] ?? '--'),
+          const SizedBox(height: 6),
+          _buildInfoRow("Tipo de Rede", info['networkType'] ?? '--'),
+          if (info['simState'] != null) ...[
+            const SizedBox(height: 6),
+            _buildInfoRow("Estado SIM", info['simState'] ?? '--'),
+          ],
+          const SizedBox(height: 6),
+          _buildInfoRow("IP", info['ip'] ?? '--'),
+        ],
+      );
+    } else if (type == 'Ethernet') {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _buildInfoRow("Endereço IP", info['ip'] ?? '--'),
+          const SizedBox(height: 6),
+          _buildInfoRow("MAC Address", info['mac'] ?? '--'),
+          const SizedBox(height: 6),
+          _buildInfoRow("Interface", info['interface'] ?? '--'),
+        ],
+      );
+    }
+
+    return const SizedBox.shrink();
   }
 
-  Widget _buildWiFiInfoRow(String label, String value) {
+  Widget _buildInfoRow(String label, String value) {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -500,7 +475,7 @@ class _SpeedTestScreenState extends State<SpeedTestScreen> {
           child: Text(
             label,
             style: TextStyle(
-              fontSize: 13,
+              fontSize: 12,
               color: Colors.grey[600],
               fontWeight: FontWeight.w600,
             ),
@@ -510,7 +485,7 @@ class _SpeedTestScreenState extends State<SpeedTestScreen> {
           child: Text(
             value,
             style: const TextStyle(
-              fontSize: 13,
+              fontSize: 12,
               fontWeight: FontWeight.w500,
               color: Colors.black87,
             ),
@@ -697,6 +672,7 @@ class _SpeedTestScreenState extends State<SpeedTestScreen> {
       _status = "Pronto para testar";
       _wifiInfo = null;
       _mobileInfo = null;
+      _ethernetInfo = null;
     });
     _loadConnectionType();
   }

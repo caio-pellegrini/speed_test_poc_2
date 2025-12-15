@@ -249,6 +249,100 @@ IP: $ip
     }
   }
 
+  // --- INFORMAÇÕES DE ETHERNET ---
+  /// Obtém informações detalhadas da conexão Ethernet (cabo)
+  /// Retorna um Map com IP, MAC address e nome da interface
+  /// Retorna null se não estiver conectado via Ethernet ou se houver erro
+  Future<Map<String, dynamic>?> getEthernetInfo() async {
+    try {
+      // Verifica se está conectado via Ethernet
+      final connectionType = await getConnectionType();
+      if (connectionType['type'] != 'Cabo (Ethernet)') {
+        return null;
+      }
+
+      // Obtém interfaces de rede
+      final interfaces = await NetworkInterface.list(
+        includeLoopback: false,
+        type: InternetAddressType.IPv4,
+      );
+
+      // Procura pela interface Ethernet (eth0, eth1, etc.)
+      NetworkInterface? ethernetInterface;
+      String? ipAddress;
+
+      for (var interface in interfaces) {
+        if (interface.name.contains('eth')) {
+          ethernetInterface = interface;
+          // Obtém o primeiro IP IPv4 não-loopback
+          for (var addr in interface.addresses) {
+            if (!addr.isLoopback && addr.type == InternetAddressType.IPv4) {
+              ipAddress = addr.address;
+              break;
+            }
+          }
+          break; // Usa a primeira interface Ethernet encontrada
+        }
+      }
+
+      if (ethernetInterface == null) {
+        return {'error': 'Interface Ethernet não encontrada'};
+      }
+
+      final interfaceName = ethernetInterface.name;
+      final macAddress = await _getMacAddress(interfaceName);
+
+      if (kDebugMode) {
+        print('''
+[******Ethernet Info*****]
+Interface: $interfaceName
+IP: ${ipAddress ?? 'IP não disponível'}
+MAC: ${macAddress ?? 'MAC não disponível'}
+''');
+      }
+
+      return {
+        'interface': interfaceName,
+        'ip': ipAddress ?? 'IP não disponível',
+        'mac': macAddress ?? 'MAC não disponível',
+      };
+    } catch (e) {
+      if (kDebugMode) {
+        print('Erro ao obter informações Ethernet: $e');
+      }
+      return {'error': 'Erro ao obter informações: ${e.toString()}'};
+    }
+  }
+
+  /// Obtém o endereço MAC da interface de rede no Android
+  /// Lê do arquivo do sistema /sys/class/net/{interface}/address
+  Future<String?> _getMacAddress(String interfaceName) async {
+    try {
+      if (Platform.isAndroid) {
+        // No Android, o MAC address está em /sys/class/net/{interface}/address
+        final result = await Process.run(
+          'cat',
+          ['/sys/class/net/$interfaceName/address'],
+        );
+
+        if (result.exitCode == 0 &&
+            result.stdout.toString().trim().isNotEmpty) {
+          final mac = result.stdout.toString().trim();
+          // Valida formato básico de MAC (XX:XX:XX:XX:XX:XX)
+          if (mac.length == 17 && mac.split(':').length == 6) {
+            return mac.toUpperCase();
+          }
+        }
+      }
+      return null;
+    } catch (e) {
+      if (kDebugMode) {
+        print('Erro ao obter MAC address: $e');
+      }
+      return null;
+    }
+  }
+
   /// Obtém o melhor endereço IP disponível na rede
   /// Prioriza interfaces de dados móveis (rmnet) quando em dados móveis
   /// ou Wi-Fi/Ethernet quando disponíveis
