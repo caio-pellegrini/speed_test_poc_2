@@ -31,6 +31,7 @@ class _SpeedTestScreenState extends State<SpeedTestScreen> {
   Map<String, dynamic>? _connectionType;
   int? _latency;
   Map<String, dynamic>? _wifiInfo;
+  Map<String, dynamic>? _mobileInfo;
 
   // Stream subscription para monitorar mudanças de conectividade
   StreamSubscription<Map<String, dynamic>>? _connectivitySubscription;
@@ -55,10 +56,20 @@ class _SpeedTestScreenState extends State<SpeedTestScreen> {
         // Se mudou para Wi-Fi, carrega informações detalhadas
         if (connectionType['type'] == 'Wi-Fi') {
           _loadWiFiInfo();
-        } else {
-          // Se mudou de Wi-Fi para outro tipo, limpa as informações de Wi-Fi
+          setState(() {
+            _mobileInfo = null;
+          });
+        } else if (connectionType['type'] == 'Dados Móveis') {
+          // Se mudou para dados móveis, carrega informações detalhadas
+          _loadMobileInfo();
           setState(() {
             _wifiInfo = null;
+          });
+        } else {
+          // Se mudou para outro tipo, limpa as informações
+          setState(() {
+            _wifiInfo = null;
+            _mobileInfo = null;
           });
         }
       },
@@ -81,9 +92,19 @@ class _SpeedTestScreenState extends State<SpeedTestScreen> {
     // Se estiver conectado via Wi-Fi, carrega informações detalhadas
     if (connectionType['type'] == 'Wi-Fi') {
       await _loadWiFiInfo();
+      setState(() {
+        _mobileInfo = null;
+      });
+    } else if (connectionType['type'] == 'Dados Móveis') {
+      // Se estiver conectado via dados móveis, carrega informações detalhadas
+      await _loadMobileInfo();
+      setState(() {
+        _wifiInfo = null;
+      });
     } else {
       setState(() {
         _wifiInfo = null;
+        _mobileInfo = null;
       });
     }
   }
@@ -92,6 +113,13 @@ class _SpeedTestScreenState extends State<SpeedTestScreen> {
     final wifiInfo = await _networkService.getWiFiInfo();
     setState(() {
       _wifiInfo = wifiInfo;
+    });
+  }
+
+  Future<void> _loadMobileInfo() async {
+    final mobileInfo = await _networkService.getMobileInfo();
+    setState(() {
+      _mobileInfo = mobileInfo;
     });
   }
 
@@ -195,14 +223,23 @@ class _SpeedTestScreenState extends State<SpeedTestScreen> {
                   const SizedBox(height: 10),
 
                   // Card de Informações Wi-Fi (apenas se conectado via Wi-Fi)
-                  if (_connectionType?['type'] == 'Wi-Fi' && _wifiInfo != null)
+                  if (_connectionType?['type'] == 'Wi-Fi' &&
+                      _wifiInfo != null) ...[
                     _buildWiFiInfoCard(),
-                  if (_connectionType?['type'] == 'Wi-Fi' && _wifiInfo != null)
                     const SizedBox(height: 10),
+                  ],
 
+                  // Card de Informações de Dados Móveis (apenas se conectado via dados móveis)
+                  if (_connectionType?['type'] == 'Dados Móveis' &&
+                      _mobileInfo != null) ...[
+                    _buildMobileInfoCard(),
+                    const SizedBox(height: 10),
+                  ],
                   // Card de Endereço IP
-                  _buildServerIpCard(),
-                  const SizedBox(height: 10),
+                  if (_serverIp != null) ...[
+                    _buildServerIpCard(),
+                    const SizedBox(height: 10),
+                  ],
 
                   // Grid de Resultados
                   LayoutBuilder(
@@ -385,6 +422,72 @@ class _SpeedTestScreenState extends State<SpeedTestScreen> {
               ),
               const SizedBox(height: 8),
               _buildWiFiInfoRow("IP", _wifiInfo!['ip'] ?? '--'),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildMobileInfoCard() {
+    final hasError = _mobileInfo?.containsKey('error') ?? false;
+
+    return Card(
+      elevation: 3,
+      color: Colors.white,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: Colors.orange.withOpacity(0.12),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(Icons.signal_cellular_alt,
+                      color: Colors.orange, size: 22),
+                ),
+                const SizedBox(width: 12),
+                const Text(
+                  "Informações de Dados Móveis",
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.orange,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            if (hasError)
+              Text(
+                _mobileInfo!['error'] ?? 'Erro ao obter informações',
+                style: const TextStyle(
+                  fontSize: 14,
+                  color: Colors.red,
+                ),
+              )
+            else ...[
+              _buildWiFiInfoRow("Operadora", _mobileInfo!['carrier'] ?? '--'),
+              const SizedBox(height: 8),
+              _buildWiFiInfoRow(
+                  "Tipo de Rede", _mobileInfo!['networkType'] ?? '--'),
+              const SizedBox(height: 8),
+              _buildWiFiInfoRow("IP", _mobileInfo!['ip'] ?? '--'),
+              const SizedBox(height: 8),
+              _buildWiFiInfoRow("Gateway", _mobileInfo!['gateway'] ?? '--'),
+              const SizedBox(height: 8),
+              _buildWiFiInfoRow("Submáscara", _mobileInfo!['submask'] ?? '--'),
+              if (_mobileInfo!['ipv6'] != null &&
+                  _mobileInfo!['ipv6'] != 'N/A') ...[
+                const SizedBox(height: 8),
+                _buildWiFiInfoRow("IPv6", _mobileInfo!['ipv6'] ?? '--'),
+              ],
             ],
           ],
         ),
@@ -597,6 +700,7 @@ class _SpeedTestScreenState extends State<SpeedTestScreen> {
       _latency = null;
       _status = "Pronto para testar";
       _wifiInfo = null;
+      _mobileInfo = null;
     });
     _loadConnectionType();
   }

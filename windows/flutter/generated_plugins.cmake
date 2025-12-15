@@ -5,6 +5,7 @@
 list(APPEND FLUTTER_PLUGIN_LIST
   connectivity_plus
   permission_handler_windows
+  sim_card_info
 )
 
 list(APPEND FLUTTER_FFI_PLUGIN_LIST
