@@ -478,16 +478,12 @@ class _SpeedTestScreenState extends State<SpeedTestScreen> {
               _buildWiFiInfoRow(
                   "Tipo de Rede", _mobileInfo!['networkType'] ?? '--'),
               const SizedBox(height: 8),
-              _buildWiFiInfoRow("IP", _mobileInfo!['ip'] ?? '--'),
-              const SizedBox(height: 8),
-              _buildWiFiInfoRow("Gateway", _mobileInfo!['gateway'] ?? '--'),
-              const SizedBox(height: 8),
-              _buildWiFiInfoRow("Submáscara", _mobileInfo!['submask'] ?? '--'),
-              if (_mobileInfo!['ipv6'] != null &&
-                  _mobileInfo!['ipv6'] != 'N/A') ...[
+              if (_mobileInfo!['simState'] != null) ...[
+                _buildWiFiInfoRow(
+                    "Estado SIM", _mobileInfo!['simState'] ?? '--'),
                 const SizedBox(height: 8),
-                _buildWiFiInfoRow("IPv6", _mobileInfo!['ipv6'] ?? '--'),
               ],
+              _buildWiFiInfoRow("IP", _mobileInfo!['ip'] ?? '--'),
             ],
           ],
         ),

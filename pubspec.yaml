@@ -38,9 +38,7 @@ dependencies:
   connectivity_plus: ^6.0.0
   wifi_iot: ^0.3.19
   permission_handler: ^11.3.1
-  network_info_plus: ^5.0.2
-  sim_card_info: ^1.0.2
-  network_type_detector: ^2.0.0
+  carrier_info: ^3.0.3
 
 dev_dependencies:
   flutter_test:

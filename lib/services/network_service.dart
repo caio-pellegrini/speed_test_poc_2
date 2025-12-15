@@ -1,15 +1,13 @@
+import 'dart:io';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:dart_ping/dart_ping.dart';
 import 'package:flutter/foundation.dart';
 import 'package:wifi_iot/wifi_iot.dart';
 import 'package:permission_handler/permission_handler.dart';
-import 'package:network_info_plus/network_info_plus.dart';
-import 'package:sim_card_info/sim_card_info.dart';
-import 'package:network_type_detector/network_type_detector.dart';
+import 'package:carrier_info/carrier_info.dart';
 
 class NetworkService {
   final Connectivity _connectivity = Connectivity();
-  final NetworkInfo _networkInfo = NetworkInfo();
   bool _isCancelled = false;
 
   // --- TIPO DE CONEXÃO ---
@@ -158,71 +156,42 @@ IP: ${ip ?? 'IP desconhecido'}
       // Verifica e solicita permissão de telefone se necessário
       await _checkPhonePermission();
 
-      // Obtém informações básicas de rede
-      final wifiIP = await _networkInfo.getWifiIP();
-      final wifiIPv6 = await _networkInfo.getWifiIPv6();
-      final wifiSubmask = await _networkInfo.getWifiSubmask();
-      final wifiBroadcast = await _networkInfo.getWifiBroadcast();
-      final wifiGatewayIP = await _networkInfo.getWifiGatewayIP();
+      // Obtém IP da rede usando dart:io (mais leve que network_info_plus)
+      final ip = await _getBestIpAddress() ?? 'IP não disponível';
 
-      // Para dados móveis, o IP geralmente vem do getWifiIP() mesmo quando não está em Wi-Fi
-      final ip = wifiIP ?? 'IP não disponível';
-
-      // Obtém informações da operadora
+      // Obtém informações essenciais para diagnóstico usando carrier_info
       String? carrierName;
+      String?
+          networkTypeDisplay; // Tipo de rede combinado com rádio (ex: "4G (LTE)")
+      String? simState;
       try {
-        final simCardInfo = SimCardInfo();
-        final simCards = await simCardInfo.getSimInfo();
-        if (simCards != null && simCards.isNotEmpty) {
-          // Pega o primeiro cartão SIM (geralmente o ativo)
-          carrierName = simCards.first.carrierName;
+        final androidInfo = await CarrierInfo.getAndroidInfo();
+        if (androidInfo != null && androidInfo.telephonyInfo.isNotEmpty) {
+          // Pega o primeiro item de telephonyInfo (geralmente o ativo)
+          final telephonyInfo = androidInfo.telephonyInfo.first;
+
+          // Nome da operadora (prioridade: carrierName > networkOperatorName > displayName)
+          carrierName = telephonyInfo.carrierName.isNotEmpty
+              ? telephonyInfo.carrierName
+              : (telephonyInfo.networkOperatorName.isNotEmpty
+                  ? telephonyInfo.networkOperatorName
+                  : telephonyInfo.displayName);
+
+          // Tipo de rede combinado com tipo de rádio (ex: "4G (LTE)" ou "5G (NR)")
+          final networkGen = telephonyInfo.networkGeneration;
+          final radio = telephonyInfo.radioType;
+          if (radio != null && radio.isNotEmpty) {
+            networkTypeDisplay = '$networkGen ($radio)';
+          } else {
+            networkTypeDisplay = networkGen;
+          }
+
+          // Estado do SIM
+          simState = telephonyInfo.simState;
         }
       } catch (e) {
         if (kDebugMode) {
-          print('Erro ao obter nome da operadora: $e');
-        }
-      }
-
-      // Obtém o tipo de rede móvel (3G, 4G, 5G)
-      String? networkType;
-      try {
-        final networkTypeDetector = NetworkTypeDetector();
-        final networkStatus = await networkTypeDetector.currentNetworkStatus();
-
-        if (kDebugMode) {
-          print('[DEBUG] NetworkStatus retornado: $networkStatus');
-        }
-
-        switch (networkStatus) {
-          case NetworkStatus.mobile2G:
-            networkType = '2G';
-            break;
-          case NetworkStatus.mobile3G:
-            networkType = '3G';
-            break;
-          case NetworkStatus.mobile4G:
-            networkType = '4G';
-            break;
-          case NetworkStatus.mobile5G:
-            networkType = '5G';
-            break;
-          case NetworkStatus.otherMobile:
-            // Pode ser 5G em alguns casos, vamos tentar detectar melhor
-            networkType = 'Móvel (Outro)';
-            break;
-          default:
-            networkType = null;
-        }
-
-        // Se detectou 4G mas pode ser 5G, vamos adicionar uma nota
-        // (alguns dispositivos mostram 5G na UI mas a API retorna 4G devido a limitações)
-        if (networkType == '4G' && kDebugMode) {
-          print(
-              '[DEBUG] Detectado 4G - pode ser 5G (verificar na UI do dispositivo)');
-        }
-      } catch (e) {
-        if (kDebugMode) {
-          print('Erro ao obter tipo de rede móvel: $e');
+          print('Erro ao obter informações da operadora: $e');
         }
       }
 
@@ -230,22 +199,17 @@ IP: ${ip ?? 'IP desconhecido'}
         print('''
 [******Mobile Info*****]
 Operadora: ${carrierName ?? 'N/A'}
-Tipo de Rede: ${networkType ?? 'N/A'}
+Tipo de Rede: ${networkTypeDisplay ?? 'N/A'}
+Estado SIM: ${simState ?? 'N/A'}
 IP: $ip
-Gateway: ${wifiGatewayIP ?? 'N/A'}
-Submáscara: ${wifiSubmask ?? 'N/A'}
-IPv6: ${wifiIPv6 ?? 'N/A'}
 ''');
       }
 
       return {
         'carrier': carrierName ?? 'Operadora desconhecida',
-        'networkType': networkType ?? 'Desconhecido',
+        'networkType': networkTypeDisplay ?? 'Desconhecido',
+        'simState': simState,
         'ip': ip,
-        'gateway': wifiGatewayIP ?? 'N/A',
-        'submask': wifiSubmask ?? 'N/A',
-        'ipv6': wifiIPv6 ?? 'N/A',
-        'broadcast': wifiBroadcast ?? 'N/A',
       };
     } catch (e) {
       if (kDebugMode) {
@@ -282,6 +246,65 @@ IPv6: ${wifiIPv6 ?? 'N/A'}
               '[PERMISSÃO] Localização negada - informações de Wi-Fi podem estar limitadas');
         }
       }
+    }
+  }
+
+  /// Obtém o melhor endereço IP disponível na rede
+  /// Prioriza interfaces de dados móveis (rmnet) quando em dados móveis
+  /// ou Wi-Fi/Ethernet quando disponíveis
+  Future<String?> _getBestIpAddress() async {
+    try {
+      final connectionType = await getConnectionType();
+      final isMobile = connectionType['type'] == 'Dados Móveis';
+
+      final interfaces = await NetworkInterface.list(
+        includeLoopback: false,
+        type: InternetAddressType.IPv4,
+      );
+
+      // Se estiver em dados móveis, prioriza interfaces rmnet (dados móveis Android)
+      if (isMobile) {
+        for (var interface in interfaces) {
+          // Interfaces de dados móveis no Android: rmnet, ccmni, wwan
+          if (interface.name.contains('rmnet') ||
+              interface.name.contains('ccmni') ||
+              interface.name.contains('wwan')) {
+            for (var addr in interface.addresses) {
+              if (!addr.isLoopback && addr.type == InternetAddressType.IPv4) {
+                return addr.address;
+              }
+            }
+          }
+        }
+      }
+
+      // Prioriza interfaces físicas conhecidas (Cabo, Wi-Fi)
+      for (var interface in interfaces) {
+        // eth0 = Cabo, wlan0 = Wi-Fi
+        if (interface.name.contains('eth') || interface.name.contains('wlan')) {
+          for (var addr in interface.addresses) {
+            if (!addr.isLoopback && addr.type == InternetAddressType.IPv4) {
+              return addr.address;
+            }
+          }
+        }
+      }
+
+      // Fallback: retorna a primeira interface não-loopback que encontrar
+      for (var interface in interfaces) {
+        for (var addr in interface.addresses) {
+          if (!addr.isLoopback && addr.type == InternetAddressType.IPv4) {
+            return addr.address;
+          }
+        }
+      }
+
+      return null;
+    } catch (e) {
+      if (kDebugMode) {
+        print('Erro ao obter IP: $e');
+      }
+      return null;
     }
   }
 }
