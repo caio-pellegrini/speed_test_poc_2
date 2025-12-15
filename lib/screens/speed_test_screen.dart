@@ -29,6 +29,7 @@ class _SpeedTestScreenState extends State<SpeedTestScreen> {
   // Variáveis para tipo de conexão e latência
   Map<String, dynamic>? _connectionType;
   int? _latency;
+  Map<String, dynamic>? _wifiInfo;
 
   @override
   void initState() {
@@ -40,6 +41,22 @@ class _SpeedTestScreenState extends State<SpeedTestScreen> {
     final connectionType = await _networkService.getConnectionType();
     setState(() {
       _connectionType = connectionType;
+    });
+    
+    // Se estiver conectado via Wi-Fi, carrega informações detalhadas
+    if (connectionType['type'] == 'Wi-Fi') {
+      await _loadWiFiInfo();
+    } else {
+      setState(() {
+        _wifiInfo = null;
+      });
+    }
+  }
+
+  Future<void> _loadWiFiInfo() async {
+    final wifiInfo = await _networkService.getWiFiInfo();
+    setState(() {
+      _wifiInfo = wifiInfo;
     });
   }
 
@@ -142,6 +159,12 @@ class _SpeedTestScreenState extends State<SpeedTestScreen> {
                   // Card de Conexão
                   _buildConnectionCard(),
                   const SizedBox(height: 10),
+
+                  // Card de Informações Wi-Fi (apenas se conectado via Wi-Fi)
+                  if (_connectionType?['type'] == 'Wi-Fi' && _wifiInfo != null)
+                    _buildWiFiInfoCard(),
+                  if (_connectionType?['type'] == 'Wi-Fi' && _wifiInfo != null)
+                    const SizedBox(height: 10),
 
                   // Card de Endereço IP
                   _buildServerIpCard(),
@@ -256,6 +279,104 @@ class _SpeedTestScreenState extends State<SpeedTestScreen> {
           ],
         ),
       ),
+    );
+  }
+
+  Widget _buildWiFiInfoCard() {
+    final hasError = _wifiInfo?.containsKey('error') ?? false;
+    
+    return Card(
+      elevation: 3,
+      color: Colors.white,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: Colors.blue.withOpacity(0.12),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(Icons.wifi, color: Colors.blue, size: 22),
+                ),
+                const SizedBox(width: 12),
+                const Text(
+                  "Informações da Rede Wi-Fi",
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.blue,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            if (hasError)
+              Text(
+                _wifiInfo!['error'] ?? 'Erro ao obter informações',
+                style: const TextStyle(
+                  fontSize: 14,
+                  color: Colors.red,
+                ),
+              )
+            else ...[
+              _buildWiFiInfoRow("SSID", _wifiInfo!['ssid'] ?? '--'),
+              const SizedBox(height: 8),
+              _buildWiFiInfoRow("BSSID", _wifiInfo!['bssid'] ?? '--'),
+              const SizedBox(height: 8),
+              _buildWiFiInfoRow(
+                "Sinal",
+                _wifiInfo!['signal'] != null
+                    ? "${_wifiInfo!['signal']} dBm"
+                    : '--',
+              ),
+              const SizedBox(height: 8),
+              _buildWiFiInfoRow(
+                "Frequência",
+                _wifiInfo!['frequency'] != null
+                    ? "${_wifiInfo!['frequency']} MHz"
+                    : '--',
+              ),
+              const SizedBox(height: 8),
+              _buildWiFiInfoRow("IP", _wifiInfo!['ip'] ?? '--'),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildWiFiInfoRow(String label, String value) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        SizedBox(
+          width: 100,
+          child: Text(
+            label,
+            style: TextStyle(
+              fontSize: 13,
+              color: Colors.grey[600],
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ),
+        Expanded(
+          child: Text(
+            value,
+            style: const TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w500,
+              color: Colors.black87,
+            ),
+          ),
+        ),
+      ],
     );
   }
 
@@ -432,6 +553,7 @@ class _SpeedTestScreenState extends State<SpeedTestScreen> {
       _isTesting = false;
       _latency = null;
       _status = "Pronto para testar";
+      _wifiInfo = null;
     });
     _loadConnectionType();
   }
