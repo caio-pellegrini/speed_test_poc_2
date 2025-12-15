@@ -39,6 +39,7 @@ dependencies:
   wifi_iot: ^0.3.19
   permission_handler: ^11.3.1
   carrier_info: ^3.0.3
+  android_intent_plus: ^5.0.2
 
 dev_dependencies:
   flutter_test:

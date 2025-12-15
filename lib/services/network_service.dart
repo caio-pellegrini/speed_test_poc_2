@@ -18,7 +18,7 @@ class NetworkService {
       return _convertConnectivityResults(results);
     } catch (e) {
       if (kDebugMode) {
-        print('Erro ao obter tipo de conexão: $e');
+        debugPrint('Erro ao obter tipo de conexão: $e');
       }
       return {'type': 'Desconhecido', 'icon': 5};
     }
@@ -35,11 +35,11 @@ class NetworkService {
     } else if (results.contains(ConnectivityResult.mobile)) {
       return {'type': 'Dados Móveis', 'icon': 2}; // 2 = Icone Celular
     } else if (results.contains(ConnectivityResult.bluetooth)) {
-      return {'type': 'Bluetooth', 'icon': 4}; // 4 = Icone Bluetooth
+      return {'type': 'Bluetooth', 'icon': 3}; // 3 = Icone Bluetooth
     } else if (results.contains(ConnectivityResult.none)) {
-      return {'type': 'Sem Conexão', 'icon': 3};
+      return {'type': 'Sem Conexão', 'icon': 4}; // 4 = Icone Sem Conexão
     } else {
-      return {'type': 'Outro', 'icon': 5};
+      return {'type': 'Outro', 'icon': 5}; // 5 = Icone Outro
     }
   }
 
@@ -52,7 +52,7 @@ class NetworkService {
         return _convertConnectivityResults(results);
       } catch (e) {
         if (kDebugMode) {
-          print('Erro ao converter conectividade: $e');
+          debugPrint('Erro ao converter conectividade: $e');
         }
         return {'type': 'Desconhecido', 'icon': 5};
       }
@@ -75,7 +75,7 @@ class NetworkService {
         }
       }
     } catch (e) {
-      if (kDebugMode) print("Erro no ping: $e");
+      if (kDebugMode) debugPrint("Erro no ping: $e");
       return -1;
     }
 
@@ -124,7 +124,7 @@ class NetworkService {
       };
     } catch (e) {
       if (kDebugMode) {
-        print('Erro ao obter informações Wi-Fi: $e');
+        debugPrint('Erro ao obter informações Wi-Fi: $e');
       }
       return {'error': 'Erro ao obter informações: ${e.toString()}'};
     }
@@ -180,7 +180,7 @@ class NetworkService {
         }
       } catch (e) {
         if (kDebugMode) {
-          print('Erro ao obter informações da operadora: $e');
+          debugPrint('Erro ao obter informações da operadora: $e');
         }
       }
 
@@ -192,7 +192,7 @@ class NetworkService {
       };
     } catch (e) {
       if (kDebugMode) {
-        print('Erro ao obter informações de dados móveis: $e');
+        debugPrint('Erro ao obter informações de dados móveis: $e');
       }
       return {'error': 'Erro ao obter informações: ${e.toString()}'};
     }
@@ -206,7 +206,7 @@ class NetworkService {
       final result = await Permission.phone.request();
       if (!result.isGranted) {
         if (kDebugMode) {
-          print(
+          debugPrint(
               '[PERMISSÃO] Telefone negada - informações da operadora podem estar limitadas');
         }
       }
@@ -221,7 +221,7 @@ class NetworkService {
       final result = await Permission.location.request();
       if (!result.isGranted) {
         if (kDebugMode) {
-          print(
+          debugPrint(
               '[PERMISSÃO] Localização negada - informações de Wi-Fi podem estar limitadas');
         }
       }
@@ -278,7 +278,7 @@ class NetworkService {
       };
     } catch (e) {
       if (kDebugMode) {
-        print('Erro ao obter informações Ethernet: $e');
+        debugPrint('Erro ao obter informações Ethernet: $e');
       }
       return {'error': 'Erro ao obter informações: ${e.toString()}'};
     }
@@ -307,7 +307,7 @@ class NetworkService {
       return null;
     } catch (e) {
       if (kDebugMode) {
-        print('Erro ao obter MAC address: $e');
+        debugPrint('Erro ao obter MAC address: $e');
       }
       return null;
     }
@@ -366,7 +366,7 @@ class NetworkService {
       return null;
     } catch (e) {
       if (kDebugMode) {
-        print('Erro ao obter IP: $e');
+        debugPrint('Erro ao obter IP: $e');
       }
       return null;
     }
