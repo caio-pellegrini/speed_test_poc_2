@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:speed_test/widgets/space_widget.dart';
+import 'package:speed_test/app/shared/widgets/space_widget.dart';
 
 class ResultWidget extends StatelessWidget {
   const ResultWidget({

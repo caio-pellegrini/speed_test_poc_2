@@ -5,61 +5,92 @@ import 'package:flutter/foundation.dart';
 import 'package:wifi_iot/wifi_iot.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:carrier_info/carrier_info.dart';
+import '../../domain/entities/connection_info.dart';
+import '../../domain/repositories/inetwork_info_repository.dart';
+import '../../domain/exceptions/network_exception.dart';
 
-class NetworkService {
+class NetworkInfoRepositoryImpl implements INetworkInfoRepository {
   final Connectivity _connectivity = Connectivity();
   bool _isCancelled = false;
 
-  // --- TIPO DE CONEXÃO ---
-  Future<Map<String, dynamic>> getConnectionType() async {
+  @override
+  Future<ConnectionInfo> getConnectionType() async {
     try {
       final List<ConnectivityResult> results =
           await _connectivity.checkConnectivity();
-      return _convertConnectivityResults(results);
+      final connectionData = _convertConnectivityResults(results);
+      
+      // Carrega informações detalhadas baseado no tipo
+      Map<String, dynamic>? wifiInfo;
+      Map<String, dynamic>? mobileInfo;
+      Map<String, dynamic>? ethernetInfo;
+
+      if (connectionData['type'] == 'Wi-Fi') {
+        wifiInfo = await _getWiFiInfo();
+      } else if (connectionData['type'] == 'Dados Móveis') {
+        mobileInfo = await _getMobileInfo();
+      } else if (connectionData['type'] == 'Cabo (Ethernet)') {
+        ethernetInfo = await _getEthernetInfo();
+      }
+
+      return ConnectionInfo(
+        type: connectionData['type'] as String,
+        icon: connectionData['icon'] as int,
+        wifiInfo: wifiInfo,
+        mobileInfo: mobileInfo,
+        ethernetInfo: ethernetInfo,
+      );
     } catch (e) {
       if (kDebugMode) {
         debugPrint('Erro ao obter tipo de conexão: $e');
       }
-      return {'type': 'Desconhecido', 'icon': 5};
+      throw NetworkException(
+        'Erro ao obter tipo de conexão: ${e.toString()}',
+        e,
+      );
     }
   }
 
-  /// Converte uma lista de ConnectivityResult para o formato Map usado na UI
-  Map<String, dynamic> _convertConnectivityResults(
-      List<ConnectivityResult> results) {
-    // Lógica de prioridade do Android: Ethernet > Wifi > Mobile > Bluetooth
-    if (results.contains(ConnectivityResult.ethernet)) {
-      return {'type': 'Cabo (Ethernet)', 'icon': 0}; // 0 = Icone Cabo
-    } else if (results.contains(ConnectivityResult.wifi)) {
-      return {'type': 'Wi-Fi', 'icon': 1}; // 1 = Icone Wifi
-    } else if (results.contains(ConnectivityResult.mobile)) {
-      return {'type': 'Dados Móveis', 'icon': 2}; // 2 = Icone Celular
-    } else if (results.contains(ConnectivityResult.bluetooth)) {
-      return {'type': 'Bluetooth', 'icon': 3}; // 3 = Icone Bluetooth
-    } else if (results.contains(ConnectivityResult.none)) {
-      return {'type': 'Sem Conexão', 'icon': 4}; // 4 = Icone Sem Conexão
-    } else {
-      return {'type': 'Outro', 'icon': 5}; // 5 = Icone Outro
-    }
-  }
+  @override
+  Stream<ConnectionInfo> getConnectionTypeStream() {
+    return _connectivity.onConnectivityChanged.asyncMap(
+      (List<ConnectivityResult> results) async {
+        try {
+          final connectionData = _convertConnectivityResults(results);
+          
+          Map<String, dynamic>? wifiInfo;
+          Map<String, dynamic>? mobileInfo;
+          Map<String, dynamic>? ethernetInfo;
 
-  /// Retorna um Stream que emite mudanças no tipo de conexão
-  /// O stream escuta mudanças de conectividade e converte para o formato usado na UI
-  Stream<Map<String, dynamic>> getConnectionTypeStream() {
-    return _connectivity.onConnectivityChanged
-        .map((List<ConnectivityResult> results) {
-      try {
-        return _convertConnectivityResults(results);
-      } catch (e) {
-        if (kDebugMode) {
-          debugPrint('Erro ao converter conectividade: $e');
+          if (connectionData['type'] == 'Wi-Fi') {
+            wifiInfo = await _getWiFiInfo();
+          } else if (connectionData['type'] == 'Dados Móveis') {
+            mobileInfo = await _getMobileInfo();
+          } else if (connectionData['type'] == 'Cabo (Ethernet)') {
+            ethernetInfo = await _getEthernetInfo();
+          }
+
+          return ConnectionInfo(
+            type: connectionData['type'] as String,
+            icon: connectionData['icon'] as int,
+            wifiInfo: wifiInfo,
+            mobileInfo: mobileInfo,
+            ethernetInfo: ethernetInfo,
+          );
+        } catch (e) {
+          if (kDebugMode) {
+            debugPrint('Erro ao converter conectividade: $e');
+          }
+          return ConnectionInfo(
+            type: 'Desconhecido',
+            icon: 5,
+          );
         }
-        return {'type': 'Desconhecido', 'icon': 5};
-      }
-    });
+      },
+    );
   }
 
-  // --- LATÊNCIA (PING) ---
+  @override
   Future<int> testLatency({String host = '8.8.8.8'}) async {
     _isCancelled = false;
     final ping = Ping(host, count: 5);
@@ -83,32 +114,46 @@ class NetworkService {
     return (totalTime / successCount).round();
   }
 
+  @override
   void cancelLatencyTest() {
     _isCancelled = true;
   }
 
-  // --- INFORMAÇÕES DE WI-FI ---
+  /// Converte uma lista de ConnectivityResult para o formato Map usado na UI
+  Map<String, dynamic> _convertConnectivityResults(
+      List<ConnectivityResult> results) {
+    // Lógica de prioridade do Android: Ethernet > Wifi > Mobile > Bluetooth
+    if (results.contains(ConnectivityResult.ethernet)) {
+      return {'type': 'Cabo (Ethernet)', 'icon': 0};
+    } else if (results.contains(ConnectivityResult.wifi)) {
+      return {'type': 'Wi-Fi', 'icon': 1};
+    } else if (results.contains(ConnectivityResult.mobile)) {
+      return {'type': 'Dados Móveis', 'icon': 2};
+    } else if (results.contains(ConnectivityResult.bluetooth)) {
+      return {'type': 'Bluetooth', 'icon': 3};
+    } else if (results.contains(ConnectivityResult.none)) {
+      return {'type': 'Sem Conexão', 'icon': 4};
+    } else {
+      return {'type': 'Outro', 'icon': 5};
+    }
+  }
+
   /// Obtém informações detalhadas da rede Wi-Fi conectada
-  /// Retorna um Map com SSID, BSSID, sinal, frequência e IP
-  /// Retorna null se não estiver conectado via Wi-Fi ou se houver erro
-  Future<Map<String, dynamic>?> getWiFiInfo() async {
+  Future<Map<String, dynamic>?> _getWiFiInfo() async {
     try {
-      // Verifica se está conectado via Wi-Fi
-      final connectionType = await getConnectionType();
-      if (connectionType['type'] != 'Wi-Fi') {
+      final results = await _connectivity.checkConnectivity();
+      final connectionData = _convertConnectivityResults(results);
+      if (connectionData['type'] != 'Wi-Fi') {
         return null;
       }
 
-      // Verifica se Wi-Fi está habilitado
       final isEnabled = await WiFiForIoTPlugin.isEnabled();
       if (!isEnabled) {
         return {'error': 'Wi-Fi desativado'};
       }
 
-      // Verifica e solicita permissão de localização
       await _checkLocationPermission();
 
-      // Obtém informações da rede
       final ssid = await WiFiForIoTPlugin.getSSID();
       final bssid = await WiFiForIoTPlugin.getBSSID();
       final signal = await WiFiForIoTPlugin.getCurrentSignalStrength();
@@ -130,43 +175,34 @@ class NetworkService {
     }
   }
 
-  // --- INFORMAÇÕES DE DADOS MÓVEIS ---
   /// Obtém informações detalhadas da conexão de dados móveis
-  /// Retorna um Map com IP, tipo de conexão, operadora e outras informações
-  /// Retorna null se não estiver conectado via dados móveis ou se houver erro
-  Future<Map<String, dynamic>?> getMobileInfo() async {
+  Future<Map<String, dynamic>?> _getMobileInfo() async {
     try {
-      // Verifica se está conectado via dados móveis
-      final connectionType = await getConnectionType();
-      if (connectionType['type'] != 'Dados Móveis') {
+      final results = await _connectivity.checkConnectivity();
+      final connectionData = _convertConnectivityResults(results);
+      if (connectionData['type'] != 'Dados Móveis') {
         return null;
       }
 
-      // Verifica e solicita permissão de telefone se necessário
       await _checkPhonePermission();
 
-      // Obtém IP da rede usando dart:io (mais leve que network_info_plus)
       final ip = await _getBestIpAddress() ?? 'IP não disponível';
 
-      // Obtém informações essenciais para diagnóstico usando carrier_info
       String? carrierName;
-      String?
-          networkTypeDisplay; // Tipo de rede combinado com rádio (ex: "4G (LTE)")
+      String? networkTypeDisplay;
       String? simState;
+      
       try {
         final androidInfo = await CarrierInfo.getAndroidInfo();
         if (androidInfo != null && androidInfo.telephonyInfo.isNotEmpty) {
-          // Pega o primeiro item de telephonyInfo (geralmente o ativo)
           final telephonyInfo = androidInfo.telephonyInfo.first;
 
-          // Nome da operadora (prioridade: carrierName > networkOperatorName > displayName)
           carrierName = telephonyInfo.carrierName.isNotEmpty
               ? telephonyInfo.carrierName
               : (telephonyInfo.networkOperatorName.isNotEmpty
                   ? telephonyInfo.networkOperatorName
                   : telephonyInfo.displayName);
 
-          // Tipo de rede combinado com tipo de rádio (ex: "4G (LTE)" ou "5G (NR)")
           final networkGen = telephonyInfo.networkGeneration;
           final radio = telephonyInfo.radioType;
           if (radio != null && radio.isNotEmpty) {
@@ -175,7 +211,6 @@ class NetworkService {
             networkTypeDisplay = networkGen;
           }
 
-          // Estado do SIM
           simState = telephonyInfo.simState;
         }
       } catch (e) {
@@ -193,6 +228,56 @@ class NetworkService {
     } catch (e) {
       if (kDebugMode) {
         debugPrint('Erro ao obter informações de dados móveis: $e');
+      }
+      return {'error': 'Erro ao obter informações: ${e.toString()}'};
+    }
+  }
+
+  /// Obtém informações detalhadas da conexão Ethernet (cabo)
+  Future<Map<String, dynamic>?> _getEthernetInfo() async {
+    try {
+      final results = await _connectivity.checkConnectivity();
+      final connectionData = _convertConnectivityResults(results);
+      if (connectionData['type'] != 'Cabo (Ethernet)') {
+        return null;
+      }
+
+      final interfaces = await NetworkInterface.list(
+        includeLoopback: false,
+        type: InternetAddressType.IPv4,
+      );
+
+      NetworkInterface? ethernetInterface;
+      String? ipAddress;
+
+      for (var interface in interfaces) {
+        if (interface.name.contains('eth')) {
+          ethernetInterface = interface;
+          for (var addr in interface.addresses) {
+            if (!addr.isLoopback && addr.type == InternetAddressType.IPv4) {
+              ipAddress = addr.address;
+              break;
+            }
+          }
+          break;
+        }
+      }
+
+      if (ethernetInterface == null) {
+        return {'error': 'Interface Ethernet não encontrada'};
+      }
+
+      final interfaceName = ethernetInterface.name;
+      final macAddress = await _getMacAddress(interfaceName);
+
+      return {
+        'interface': interfaceName,
+        'ip': ipAddress ?? 'IP não disponível',
+        'mac': macAddress ?? 'MAC não disponível',
+      };
+    } catch (e) {
+      if (kDebugMode) {
+        debugPrint('Erro ao obter informações Ethernet: $e');
       }
       return {'error': 'Erro ao obter informações: ${e.toString()}'};
     }
@@ -228,68 +313,10 @@ class NetworkService {
     }
   }
 
-  // --- INFORMAÇÕES DE ETHERNET ---
-  /// Obtém informações detalhadas da conexão Ethernet (cabo)
-  /// Retorna um Map com IP, MAC address e nome da interface
-  /// Retorna null se não estiver conectado via Ethernet ou se houver erro
-  Future<Map<String, dynamic>?> getEthernetInfo() async {
-    try {
-      // Verifica se está conectado via Ethernet
-      final connectionType = await getConnectionType();
-      if (connectionType['type'] != 'Cabo (Ethernet)') {
-        return null;
-      }
-
-      // Obtém interfaces de rede
-      final interfaces = await NetworkInterface.list(
-        includeLoopback: false,
-        type: InternetAddressType.IPv4,
-      );
-
-      // Procura pela interface Ethernet (eth0, eth1, etc.)
-      NetworkInterface? ethernetInterface;
-      String? ipAddress;
-
-      for (var interface in interfaces) {
-        if (interface.name.contains('eth')) {
-          ethernetInterface = interface;
-          // Obtém o primeiro IP IPv4 não-loopback
-          for (var addr in interface.addresses) {
-            if (!addr.isLoopback && addr.type == InternetAddressType.IPv4) {
-              ipAddress = addr.address;
-              break;
-            }
-          }
-          break; // Usa a primeira interface Ethernet encontrada
-        }
-      }
-
-      if (ethernetInterface == null) {
-        return {'error': 'Interface Ethernet não encontrada'};
-      }
-
-      final interfaceName = ethernetInterface.name;
-      final macAddress = await _getMacAddress(interfaceName);
-
-      return {
-        'interface': interfaceName,
-        'ip': ipAddress ?? 'IP não disponível',
-        'mac': macAddress ?? 'MAC não disponível',
-      };
-    } catch (e) {
-      if (kDebugMode) {
-        debugPrint('Erro ao obter informações Ethernet: $e');
-      }
-      return {'error': 'Erro ao obter informações: ${e.toString()}'};
-    }
-  }
-
   /// Obtém o endereço MAC da interface de rede no Android
-  /// Lê do arquivo do sistema /sys/class/net/{interface}/address
   Future<String?> _getMacAddress(String interfaceName) async {
     try {
       if (Platform.isAndroid) {
-        // No Android, o MAC address está em /sys/class/net/{interface}/address
         final result = await Process.run(
           'cat',
           ['/sys/class/net/$interfaceName/address'],
@@ -298,7 +325,6 @@ class NetworkService {
         if (result.exitCode == 0 &&
             result.stdout.toString().trim().isNotEmpty) {
           final mac = result.stdout.toString().trim();
-          // Valida formato básico de MAC (XX:XX:XX:XX:XX:XX)
           if (mac.length == 17 && mac.split(':').length == 6) {
             return mac.toUpperCase();
           }
@@ -314,22 +340,19 @@ class NetworkService {
   }
 
   /// Obtém o melhor endereço IP disponível na rede
-  /// Prioriza interfaces de dados móveis (rmnet) quando em dados móveis
-  /// ou Wi-Fi/Ethernet quando disponíveis
   Future<String?> _getBestIpAddress() async {
     try {
-      final connectionType = await getConnectionType();
-      final isMobile = connectionType['type'] == 'Dados Móveis';
+      final results = await _connectivity.checkConnectivity();
+      final connectionData = _convertConnectivityResults(results);
+      final isMobile = connectionData['type'] == 'Dados Móveis';
 
       final interfaces = await NetworkInterface.list(
         includeLoopback: false,
         type: InternetAddressType.IPv4,
       );
 
-      // Se estiver em dados móveis, prioriza interfaces rmnet (dados móveis Android)
       if (isMobile) {
         for (var interface in interfaces) {
-          // Interfaces de dados móveis no Android: rmnet, ccmni, wwan
           if (interface.name.contains('rmnet') ||
               interface.name.contains('ccmni') ||
               interface.name.contains('wwan')) {
@@ -342,9 +365,7 @@ class NetworkService {
         }
       }
 
-      // Prioriza interfaces físicas conhecidas (Cabo, Wi-Fi)
       for (var interface in interfaces) {
-        // eth0 = Cabo, wlan0 = Wi-Fi
         if (interface.name.contains('eth') || interface.name.contains('wlan')) {
           for (var addr in interface.addresses) {
             if (!addr.isLoopback && addr.type == InternetAddressType.IPv4) {
@@ -354,7 +375,6 @@ class NetworkService {
         }
       }
 
-      // Fallback: retorna a primeira interface não-loopback que encontrar
       for (var interface in interfaces) {
         for (var addr in interface.addresses) {
           if (!addr.isLoopback && addr.type == InternetAddressType.IPv4) {
@@ -372,3 +392,4 @@ class NetworkService {
     }
   }
 }
+

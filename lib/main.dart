@@ -1,8 +1,12 @@
 import 'package:flutter/material.dart';
-import 'package:speed_test/screens/speed_test_screen.dart';
+import 'package:flutter_modular/flutter_modular.dart';
+import 'app/modules/speed_test/speed_test_module.dart';
 
 void main() {
-  runApp(const MyApp());
+  runApp(ModularApp(
+    module: SpeedTestModule(),
+    child: const MyApp(),
+  ));
 }
 
 class MyApp extends StatelessWidget {
@@ -10,7 +14,7 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
+    return MaterialApp.router(
       title: 'Speed test',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
@@ -23,7 +27,7 @@ class MyApp extends StatelessWidget {
         ),
         useMaterial3: true,
       ),
-      home: const SpeedTestScreen(),
+      routerConfig: Modular.routerConfig,
     );
   }
 }
