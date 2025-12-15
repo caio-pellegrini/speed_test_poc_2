@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_speed_test_plus/flutter_speed_test_plus.dart';
 import 'package:speed_test/services/network_service.dart';
@@ -25,16 +26,50 @@ class _SpeedTestScreenState extends State<SpeedTestScreen> {
 
   String? _serverIp;
   String _status = "Pronto para testar";
-  
+
   // Variáveis para tipo de conexão e latência
   Map<String, dynamic>? _connectionType;
   int? _latency;
   Map<String, dynamic>? _wifiInfo;
 
+  // Stream subscription para monitorar mudanças de conectividade
+  StreamSubscription<Map<String, dynamic>>? _connectivitySubscription;
+
   @override
   void initState() {
     super.initState();
     _loadConnectionType();
+    _setupConnectivityListener();
+  }
+
+  /// Configura o listener para mudanças de conectividade
+  void _setupConnectivityListener() {
+    _connectivitySubscription =
+        _networkService.getConnectionTypeStream().listen(
+      (Map<String, dynamic> connectionType) {
+        // Atualiza o tipo de conexão
+        setState(() {
+          _connectionType = connectionType;
+        });
+
+        // Se mudou para Wi-Fi, carrega informações detalhadas
+        if (connectionType['type'] == 'Wi-Fi') {
+          _loadWiFiInfo();
+        } else {
+          // Se mudou de Wi-Fi para outro tipo, limpa as informações de Wi-Fi
+          setState(() {
+            _wifiInfo = null;
+          });
+        }
+      },
+      onError: (error) {
+        // Em caso de erro, mantém o estado atual
+        if (mounted) {
+          // Opcional: pode adicionar um indicador de erro na UI
+          print('Erro no listener de conectividade: $error');
+        }
+      },
+    );
   }
 
   Future<void> _loadConnectionType() async {
@@ -42,7 +77,7 @@ class _SpeedTestScreenState extends State<SpeedTestScreen> {
     setState(() {
       _connectionType = connectionType;
     });
-    
+
     // Se estiver conectado via Wi-Fi, carrega informações detalhadas
     if (connectionType['type'] == 'Wi-Fi') {
       await _loadWiFiInfo();
@@ -60,11 +95,10 @@ class _SpeedTestScreenState extends State<SpeedTestScreen> {
     });
   }
 
-
   bool get _hasConnection {
-    return _connectionType != null && 
-           _connectionType!['type'] != 'Sem Conexão' &&
-           _connectionType!['type'] != 'Desconhecido';
+    return _connectionType != null &&
+        _connectionType!['type'] != 'Sem Conexão' &&
+        _connectionType!['type'] != 'Desconhecido';
   }
 
   String get _connectionName {
@@ -144,7 +178,7 @@ class _SpeedTestScreenState extends State<SpeedTestScreen> {
                               Expanded(
                                 child: Text(_status,
                                     style: TextStyle(
-                                        fontSize: 16, 
+                                        fontSize: 16,
                                         fontWeight: FontWeight.bold,
                                         color: Colors.grey[800])),
                               ),
@@ -155,7 +189,7 @@ class _SpeedTestScreenState extends State<SpeedTestScreen> {
                     ),
                   ),
                   const SizedBox(height: 10),
-                  
+
                   // Card de Conexão
                   _buildConnectionCard(),
                   const SizedBox(height: 10),
@@ -178,7 +212,7 @@ class _SpeedTestScreenState extends State<SpeedTestScreen> {
                       final crossAxisCount = screenWidth > 600 ? 4 : 2;
                       // Ajusta o aspect ratio para telas largas
                       final childAspectRatio = screenWidth > 600 ? 1.3 : 1.1;
-                      
+
                       return GridView.count(
                         shrinkWrap: true,
                         physics: const NeverScrollableScrollPhysics(),
@@ -187,21 +221,25 @@ class _SpeedTestScreenState extends State<SpeedTestScreen> {
                         mainAxisSpacing: 10,
                         childAspectRatio: childAspectRatio,
                         children: [
-                          _buildMetricCard(
-                              "Download", _downloadRate, Icons.download, Colors.green),
-                          _buildMetricCard(
-                              "Upload", _uploadRate, Icons.upload, Colors.purple),
-                          _buildMetricInfo("Latência", 
-                              _latency == null 
+                          _buildMetricCard("Download", _downloadRate,
+                              Icons.download, Colors.green),
+                          _buildMetricCard("Upload", _uploadRate, Icons.upload,
+                              Colors.purple),
+                          _buildMetricInfo(
+                              "Latência",
+                              _latency == null
                                   ? "-- ms"
-                                  : _latency == -1 
+                                  : _latency == -1
                                       ? "Erro"
                                       : "$_latency ms",
-                              Icons.network_check, Colors.orange),
+                              Icons.network_check,
+                              Colors.orange),
                           _buildMetricInfo(
                               "VPN",
-                              _latency != null && _latency! > 0 && _latency! < 100 
-                                  ? "Estável" 
+                              _latency != null &&
+                                      _latency! > 0 &&
+                                      _latency! < 100
+                                  ? "Estável"
                                   : "Verificar",
                               Icons.vpn_lock,
                               Colors.blueGrey),
@@ -217,15 +255,18 @@ class _SpeedTestScreenState extends State<SpeedTestScreen> {
                     width: double.infinity,
                     height: 55,
                     child: ElevatedButton(
-                      onPressed: (_isTesting || !_hasConnection) ? null : _runTest,
+                      onPressed:
+                          (_isTesting || !_hasConnection) ? null : _runTest,
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Colors.blueAccent,
                         disabledBackgroundColor: Colors.grey[400],
                         shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(10)),
                       ),
-                      child: Text(_hasConnection ? "INICIAR TESTE" : "SEM CONEXÃO",
-                          style: const TextStyle(color: Colors.white, fontSize: 16)),
+                      child: Text(
+                          _hasConnection ? "INICIAR TESTE" : "SEM CONEXÃO",
+                          style: const TextStyle(
+                              color: Colors.white, fontSize: 16)),
                     ),
                   ),
                 ],
@@ -284,7 +325,7 @@ class _SpeedTestScreenState extends State<SpeedTestScreen> {
 
   Widget _buildWiFiInfoCard() {
     final hasError = _wifiInfo?.containsKey('error') ?? false;
-    
+
     return Card(
       elevation: 3,
       color: Colors.white,
@@ -445,7 +486,7 @@ class _SpeedTestScreenState extends State<SpeedTestScreen> {
           const SizedBox(height: 4),
           Text("${value.toStringAsFixed(1)} Mbps",
               style: TextStyle(
-                  fontSize: 20, 
+                  fontSize: 20,
                   fontWeight: FontWeight.bold,
                   color: Colors.grey[800])),
         ],
@@ -468,7 +509,7 @@ class _SpeedTestScreenState extends State<SpeedTestScreen> {
           const SizedBox(height: 4),
           Text(value,
               style: TextStyle(
-                  fontSize: 20, 
+                  fontSize: 20,
                   fontWeight: FontWeight.bold,
                   color: Colors.grey[800])),
         ],
@@ -480,7 +521,7 @@ class _SpeedTestScreenState extends State<SpeedTestScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       // Verifica o tipo de conexão antes de iniciar o teste
       await _loadConnectionType();
-      
+
       setState(() {
         _isTesting = true;
         _runTestIsComplete = false;
@@ -489,14 +530,14 @@ class _SpeedTestScreenState extends State<SpeedTestScreen> {
         _latency = null;
         _status = "Testando latência...";
       });
-      
+
       // Executa o teste de latência antes do teste de velocidade
       final latency = await _networkService.testLatency();
       setState(() {
         _latency = latency;
         _status = "Testando velocidade...";
       });
-      
+
       await internetSpeedTest.startTesting(
         useFastApi: true,
         onCompleted: (download, upload) {
@@ -505,7 +546,8 @@ class _SpeedTestScreenState extends State<SpeedTestScreen> {
             _isTesting = false;
             _status = "Teste concluído";
             _downloadRate = double.parse(
-                (download.transferRate * _downloadRateMultiplier).toStringAsPrecision(3));
+                (download.transferRate * _downloadRateMultiplier)
+                    .toStringAsPrecision(3));
             _uploadRate =
                 double.parse(upload.transferRate.toStringAsPrecision(3));
           });
@@ -514,7 +556,8 @@ class _SpeedTestScreenState extends State<SpeedTestScreen> {
           setState(() {
             if (data.type == TestType.download) {
               _downloadRate = double.parse(
-                  (data.transferRate * _downloadRateMultiplier).toStringAsPrecision(3));
+                  (data.transferRate * _downloadRateMultiplier)
+                      .toStringAsPrecision(3));
               _status = "Testando download...";
             } else {
               _uploadRate =
@@ -556,5 +599,12 @@ class _SpeedTestScreenState extends State<SpeedTestScreen> {
       _wifiInfo = null;
     });
     _loadConnectionType();
+  }
+
+  @override
+  void dispose() {
+    // Cancela a subscription para evitar memory leaks
+    _connectivitySubscription?.cancel();
+    super.dispose();
   }
 }

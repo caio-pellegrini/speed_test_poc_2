@@ -13,24 +13,48 @@ class NetworkService {
     try {
       final List<ConnectivityResult> results =
           await _connectivity.checkConnectivity();
-
-      // Lógica de prioridade do Android: Ethernet > Wifi > Mobile > Bluetooth
-      if (results.contains(ConnectivityResult.ethernet)) {
-        return {'type': 'Cabo (Ethernet)', 'icon': 0}; // 0 = Icone Cabo
-      } else if (results.contains(ConnectivityResult.wifi)) {
-        return {'type': 'Wi-Fi', 'icon': 1}; // 1 = Icone Wifi
-      } else if (results.contains(ConnectivityResult.mobile)) {
-        return {'type': 'Dados Móveis (4G/5G)', 'icon': 2}; // 2 = Icone Celular
-      } else if (results.contains(ConnectivityResult.bluetooth)) {
-        return {'type': 'Bluetooth', 'icon': 4}; // 4 = Icone Bluetooth
-      } else if (results.contains(ConnectivityResult.none)) {
-        return {'type': 'Sem Conexão', 'icon': 3};
-      } else {
-        return {'type': 'Outro', 'icon': 5};
-      }
+      return _convertConnectivityResults(results);
     } catch (e) {
+      if (kDebugMode) {
+        print('Erro ao obter tipo de conexão: $e');
+      }
       return {'type': 'Desconhecido', 'icon': 5};
     }
+  }
+
+  /// Converte uma lista de ConnectivityResult para o formato Map usado na UI
+  Map<String, dynamic> _convertConnectivityResults(
+      List<ConnectivityResult> results) {
+    // Lógica de prioridade do Android: Ethernet > Wifi > Mobile > Bluetooth
+    if (results.contains(ConnectivityResult.ethernet)) {
+      return {'type': 'Cabo (Ethernet)', 'icon': 0}; // 0 = Icone Cabo
+    } else if (results.contains(ConnectivityResult.wifi)) {
+      return {'type': 'Wi-Fi', 'icon': 1}; // 1 = Icone Wifi
+    } else if (results.contains(ConnectivityResult.mobile)) {
+      return {'type': 'Dados Móveis (4G/5G)', 'icon': 2}; // 2 = Icone Celular
+    } else if (results.contains(ConnectivityResult.bluetooth)) {
+      return {'type': 'Bluetooth', 'icon': 4}; // 4 = Icone Bluetooth
+    } else if (results.contains(ConnectivityResult.none)) {
+      return {'type': 'Sem Conexão', 'icon': 3};
+    } else {
+      return {'type': 'Outro', 'icon': 5};
+    }
+  }
+
+  /// Retorna um Stream que emite mudanças no tipo de conexão
+  /// O stream escuta mudanças de conectividade e converte para o formato usado na UI
+  Stream<Map<String, dynamic>> getConnectionTypeStream() {
+    return _connectivity.onConnectivityChanged
+        .map((List<ConnectivityResult> results) {
+      try {
+        return _convertConnectivityResults(results);
+      } catch (e) {
+        if (kDebugMode) {
+          print('Erro ao converter conectividade: $e');
+        }
+        return {'type': 'Desconhecido', 'icon': 5};
+      }
+    });
   }
 
   // --- LATÊNCIA (PING) ---
@@ -91,13 +115,13 @@ class NetworkService {
 
       if (kDebugMode) {
         print('''
-        [******WiFi Info*****]
-        SSID: ${ssid ?? 'SSID desconhecido'}
-        BSSID: ${bssid ?? 'BSSID desconhecido'}
-        Sinal: ${signal ?? '?'} dBm
-        Frequência: ${frequency ?? '?'} MHz
-        IP: ${ip ?? 'IP desconhecido'}
-        ''');
+[******WiFi Info*****]
+SSID: ${ssid ?? 'SSID desconhecido'}
+BSSID: ${bssid ?? 'BSSID desconhecido'}
+Sinal: ${signal ?? '?'} dBm
+Frequência: ${frequency ?? '?'} MHz
+IP: ${ip ?? 'IP desconhecido'}
+''');
       }
 
       return {
@@ -123,10 +147,10 @@ class NetworkService {
       final result = await Permission.location.request();
       if (!result.isGranted) {
         if (kDebugMode) {
-          print('[PERMISSÃO] Localização negada - informações de Wi-Fi podem estar limitadas');
+          print(
+              '[PERMISSÃO] Localização negada - informações de Wi-Fi podem estar limitadas');
         }
       }
     }
   }
 }
-
