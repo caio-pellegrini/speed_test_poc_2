@@ -115,17 +115,6 @@ class NetworkService {
       final frequency = await WiFiForIoTPlugin.getFrequency();
       final ip = await WiFiForIoTPlugin.getIP();
 
-      if (kDebugMode) {
-        print('''
-[******WiFi Info*****]
-SSID: ${ssid ?? 'SSID desconhecido'}
-BSSID: ${bssid ?? 'BSSID desconhecido'}
-Sinal: ${signal ?? '?'} dBm
-Frequência: ${frequency ?? '?'} MHz
-IP: ${ip ?? 'IP desconhecido'}
-''');
-      }
-
       return {
         'ssid': ssid ?? 'SSID desconhecido',
         'bssid': bssid ?? 'BSSID desconhecido',
@@ -193,16 +182,6 @@ IP: ${ip ?? 'IP desconhecido'}
         if (kDebugMode) {
           print('Erro ao obter informações da operadora: $e');
         }
-      }
-
-      if (kDebugMode) {
-        print('''
-[******Mobile Info*****]
-Operadora: ${carrierName ?? 'N/A'}
-Tipo de Rede: ${networkTypeDisplay ?? 'N/A'}
-Estado SIM: ${simState ?? 'N/A'}
-IP: $ip
-''');
       }
 
       return {
@@ -291,15 +270,6 @@ IP: $ip
 
       final interfaceName = ethernetInterface.name;
       final macAddress = await _getMacAddress(interfaceName);
-
-      if (kDebugMode) {
-        print('''
-[******Ethernet Info*****]
-Interface: $interfaceName
-IP: ${ipAddress ?? 'IP não disponível'}
-MAC: ${macAddress ?? 'MAC não disponível'}
-''');
-      }
 
       return {
         'interface': interfaceName,
