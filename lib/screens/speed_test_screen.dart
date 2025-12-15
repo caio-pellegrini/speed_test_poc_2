@@ -5,7 +5,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_speed_test_plus/flutter_speed_test_plus.dart';
 import 'package:speed_test/services/network_service.dart';
 import 'package:speed_test/widgets/loading_widget.dart';
-import 'package:speed_test/widgets/test_progress_indicator.dart';
 import 'package:android_intent_plus/android_intent.dart';
 
 class SpeedTestScreen extends StatefulWidget {
@@ -29,9 +28,9 @@ class _SpeedTestScreenState extends State<SpeedTestScreen> {
   bool _isTesting = false;
   double _testProgress = 0.0; // Progresso do teste (0.0 a 1.0)
   String _currentTestPhase = ''; // Fase atual do teste
+  bool _isConnectionCardExpanded = false; // Estado do card de conexão
 
   String? _serverIp;
-  String _status = "Pronto para testar";
 
   // Variáveis para tipo de conexão e latência
   Map<String, dynamic>? _connectionType;
@@ -210,125 +209,106 @@ class _SpeedTestScreenState extends State<SpeedTestScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final screenWidth = MediaQuery.of(context).size.width;
+    final isLargeScreen = screenWidth > 800;
+    final isLandscape =
+        MediaQuery.of(context).orientation == Orientation.landscape;
+    final isTotem = isLargeScreen || (isLandscape && screenWidth > 600);
+
     return Scaffold(
       backgroundColor: Colors.grey[100],
       appBar: AppBar(
         title: const Text("Diagnóstico de Rede - Totem"),
         backgroundColor: Colors.blueAccent,
+        bottom: _isTesting
+            ? PreferredSize(
+                preferredSize: const Size.fromHeight(60),
+                child: Container(
+                  color: Colors.blueAccent,
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  child: Column(
+                    children: [
+                      _buildProgressBarWithIcons(),
+                      const SizedBox(height: 8),
+                    ],
+                  ),
+                ),
+              )
+            : null,
       ),
       body: _isServerSelectionInProgress
           ? const LoadingWidget()
           : LayoutBuilder(
               builder: (context, constraints) {
-                final screenWidth = MediaQuery.of(context).size.width;
-                final isLargeScreen = screenWidth > 800;
-
-                // Banner de progresso no topo (durante teste) - sempre em full width
-                final progressBanner = _isTesting
-                    ? Padding(
-                        padding: const EdgeInsets.all(20.0),
-                        child: TestProgressIndicator(
-                          status: _status,
-                          isTesting: _isTesting,
-                          progress: _testProgress,
-                        ),
-                      )
-                    : null;
-
-                if (isLargeScreen) {
-                  // Layout horizontal para telas grandes
-                  return Column(
-                    children: [
-                      if (progressBanner != null) progressBanner,
-                      Expanded(
-                        child: SingleChildScrollView(
-                          padding: const EdgeInsets.all(20.0),
-                          child: Row(
-                            crossAxisAlignment: CrossAxisAlignment.start,
+                if (isTotem) {
+                  // Layout horizontal para Totem (35% esquerda / 65% direita)
+                  return SingleChildScrollView(
+                    padding: const EdgeInsets.all(20.0),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // Lado esquerdo (35%) - Conexão e Botão
+                        Expanded(
+                          flex: 35,
+                          child: Column(
                             children: [
-                              // Lado esquerdo (1/3) - Conexão, Status e Botão
-                              Expanded(
-                                flex: 1,
-                                child: Column(
-                                  children: [
-                                    _buildConnectionCard(),
-                                    const SizedBox(height: 10),
-                                    _buildStatusCard(),
-                                    const SizedBox(height: 20),
-                                    SizedBox(
-                                      width: double.infinity,
-                                      height: 55,
-                                      child: ElevatedButton(
-                                        onPressed:
-                                            (_isTesting || !_hasConnection)
-                                                ? null
-                                                : _runTest,
-                                        style: ElevatedButton.styleFrom(
-                                          backgroundColor: Colors.blueAccent,
-                                          disabledBackgroundColor:
-                                              Colors.grey[400],
-                                          shape: RoundedRectangleBorder(
-                                              borderRadius:
-                                                  BorderRadius.circular(10)),
-                                        ),
-                                        child: Text(
-                                            _hasConnection
-                                                ? "INICIAR TESTE"
-                                                : "SEM CONEXÃO",
-                                            style: const TextStyle(
-                                                color: Colors.white,
-                                                fontSize: 16)),
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                              const SizedBox(width: 20),
-                              // Lado direito (2/3) - Resultados e IP do servidor
-                              Expanded(
-                                flex: 2,
-                                child: Column(
-                                  children: [
-                                    _buildResultsGrid(screenWidth),
-                                    if (_serverIp != null) ...[
-                                      const SizedBox(height: 10),
-                                      _buildServerIpCard(),
-                                    ],
-                                  ],
+                              _buildConnectionCard(compact: false),
+                              const SizedBox(height: 20),
+                              SizedBox(
+                                width: double.infinity,
+                                height: 55,
+                                child: ElevatedButton(
+                                  onPressed: (_isTesting || !_hasConnection)
+                                      ? null
+                                      : _runTest,
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: Colors.blueAccent,
+                                    disabledBackgroundColor: Colors.grey[400],
+                                    shape: RoundedRectangleBorder(
+                                        borderRadius:
+                                            BorderRadius.circular(10)),
+                                  ),
+                                  child: Text(
+                                      _hasConnection
+                                          ? "INICIAR TESTE"
+                                          : "SEM CONEXÃO",
+                                      style: const TextStyle(
+                                          color: Colors.white, fontSize: 16)),
                                 ),
                               ),
                             ],
                           ),
                         ),
-                      ),
-                    ],
+                        const SizedBox(width: 20),
+                        // Lado direito (65%) - Resultados
+                        Expanded(
+                          flex: 65,
+                          child: Column(
+                            children: [
+                              _buildResultsGrid(isTotem: true),
+                              if (_serverIp != null) ...[
+                                const SizedBox(height: 10),
+                                _buildServerIpCard(),
+                              ],
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
                   );
                 } else {
-                  // Layout vertical para telas pequenas
+                  // Layout vertical para Smart (Portrait)
                   return SingleChildScrollView(
                     padding: const EdgeInsets.all(20.0),
                     child: Column(
                       children: [
-                        // Banner de progresso no topo (durante teste)
-                        if (_isTesting) ...[
-                          TestProgressIndicator(
-                            status: _status,
-                            isTesting: _isTesting,
-                            progress: _testProgress,
-                          ),
-                          const SizedBox(height: 10),
-                        ],
-
-                        // Card de Conexão (com informações técnicas) - PRIMEIRO
-                        _buildConnectionCard(),
+                        // Card de Conexão Expansível (compacto por padrão)
+                        _buildConnectionCard(compact: true),
                         const SizedBox(height: 10),
 
-                        // Card de Status
-                        _buildStatusCard(),
-                        const SizedBox(height: 10),
-
-                        // Grid de Resultados
-                        _buildResultsGrid(screenWidth),
+                        // Grid de Resultados (2 colunas)
+                        _buildResultsGrid(isTotem: false),
 
                         // Card de IP do servidor (exibido após o grid)
                         if (_serverIp != null) ...[
@@ -338,7 +318,7 @@ class _SpeedTestScreenState extends State<SpeedTestScreen> {
 
                         const SizedBox(height: 20),
 
-                        // Botão
+                        // Botão (sempre visível sem rolagem)
                         SizedBox(
                           width: double.infinity,
                           height: 55,
@@ -369,151 +349,64 @@ class _SpeedTestScreenState extends State<SpeedTestScreen> {
     );
   }
 
-  /// Constrói o card de status com indicador de progresso visual
-  Widget _buildStatusCard() {
-    return Card(
-      elevation: 4,
-      color: Colors.white,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(15),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(18),
-        child: Column(
+  /// Constrói barra de progresso com ícones de etapa no AppBar
+  Widget _buildProgressBarWithIcons() {
+    return Column(
+      children: [
+        // Ícones das etapas
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            // Ícone e Status em Row
-            Row(
-              children: [
-                if (_isTesting)
-                  _buildAnimatedTestIcon()
-                else
-                  Icon(Icons.check_circle_outline,
-                      size: 40, color: Colors.grey[400]),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        _status,
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.grey[800],
-                        ),
-                      ),
-                      if (_isTesting && _currentTestPhase.isNotEmpty) ...[
-                        const SizedBox(height: 4),
-                        Text(
-                          _currentTestPhase,
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: Colors.grey[600],
-                          ),
-                        ),
-                      ],
-                    ],
-                  ),
-                ),
-              ],
-            ),
-            // Barra de progresso durante teste
-            if (_isTesting) ...[
-              const SizedBox(height: 16),
-              ClipRRect(
-                borderRadius: BorderRadius.circular(4),
-                child: LinearProgressIndicator(
-                  value: _testProgress,
-                  minHeight: 6,
-                  backgroundColor: Colors.grey[200],
-                  valueColor: AlwaysStoppedAnimation<Color>(
-                    _getProgressColor(),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 8),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  _buildProgressStep("Download", _testProgress >= 0.33),
-                  _buildProgressStep("Upload", _testProgress >= 0.66),
-                  _buildProgressStep("Latência", _testProgress >= 1.0),
-                ],
-              ),
-            ],
+            _buildPhaseIcon(Icons.download, 'Download', _testProgress > 0.0),
+            const SizedBox(width: 20),
+            _buildPhaseIcon(Icons.upload, 'Upload', _testProgress > 0.33),
+            const SizedBox(width: 20),
+            _buildPhaseIcon(
+                Icons.network_check, 'Latência', _testProgress > 0.66),
           ],
         ),
-      ),
-    );
-  }
-
-  /// Constrói ícone animado durante teste
-  Widget _buildAnimatedTestIcon() {
-    return TweenAnimationBuilder<double>(
-      tween: Tween(begin: 0.0, end: 1.0),
-      duration: const Duration(seconds: 2),
-      builder: (context, value, child) {
-        return Transform.rotate(
-          angle: value * 2 * 3.14159,
-          child: Container(
-            padding: const EdgeInsets.all(4),
-            decoration: BoxDecoration(
-              color: Colors.blueAccent.withOpacity(0.1),
-              shape: BoxShape.circle,
-            ),
-            child: const Icon(
-              Icons.speed,
-              size: 40,
-              color: Colors.blueAccent,
-            ),
-          ),
-        );
-      },
-      onEnd: () {
-        if (_isTesting && mounted) {
-          setState(() {}); // Reinicia animação
-        }
-      },
-    );
-  }
-
-  /// Constrói indicador de etapa do progresso
-  Widget _buildProgressStep(String label, bool isComplete) {
-    return Row(
-      children: [
-        Container(
-          width: 12,
-          height: 12,
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            color: isComplete ? Colors.blueAccent : Colors.grey[300],
-          ),
-          child: isComplete
-              ? const Icon(Icons.check, size: 8, color: Colors.white)
-              : null,
-        ),
-        const SizedBox(width: 4),
-        Text(
-          label,
-          style: TextStyle(
-            fontSize: 11,
-            color: isComplete ? Colors.blueAccent : Colors.grey[600],
-            fontWeight: isComplete ? FontWeight.bold : FontWeight.normal,
+        const SizedBox(height: 8),
+        // Barra de progresso
+        ClipRRect(
+          borderRadius: BorderRadius.circular(4),
+          child: LinearProgressIndicator(
+            value: _testProgress,
+            minHeight: 4,
+            backgroundColor: Colors.white.withOpacity(0.3),
+            valueColor: const AlwaysStoppedAnimation<Color>(Colors.white),
           ),
         ),
       ],
     );
   }
 
-  /// Retorna cor do progresso baseado na fase do teste
-  Color _getProgressColor() {
-    if (_testProgress < 0.33) {
-      return Colors.orange;
-    } else if (_testProgress < 0.66) {
-      return Colors.blue;
-    } else {
-      return Colors.green;
-    }
+  /// Constrói ícone de fase do teste (aceso/apagado)
+  Widget _buildPhaseIcon(IconData icon, String label, bool isActive) {
+    return Column(
+      children: [
+        Container(
+          padding: const EdgeInsets.all(8),
+          decoration: BoxDecoration(
+            color: isActive ? Colors.white : Colors.white.withOpacity(0.3),
+            shape: BoxShape.circle,
+          ),
+          child: Icon(
+            icon,
+            color: isActive ? Colors.blueAccent : Colors.white.withOpacity(0.5),
+            size: 20,
+          ),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          label,
+          style: TextStyle(
+            color: Colors.white,
+            fontSize: 10,
+            fontWeight: isActive ? FontWeight.bold : FontWeight.normal,
+          ),
+        ),
+      ],
+    );
   }
 
   /// Abre as configurações de rede do sistema
@@ -561,7 +454,7 @@ class _SpeedTestScreenState extends State<SpeedTestScreen> {
     }
   }
 
-  Widget _buildConnectionCard() {
+  Widget _buildConnectionCard({bool compact = true}) {
     // Determina quais informações técnicas exibir
     final connectionType = _connectionType?['type'];
     final hasWiFiInfo = connectionType == 'Wi-Fi' && _wifiInfo != null;
@@ -571,71 +464,169 @@ class _SpeedTestScreenState extends State<SpeedTestScreen> {
         connectionType == 'Cabo (Ethernet)' && _ethernetInfo != null;
     final hasTechnicalInfo = hasWiFiInfo || hasMobileInfo || hasEthernetInfo;
 
+    // Obter subtitle para exibição compacta baseado no tipo de conexão
+    String? subtitleText;
+    if (hasWiFiInfo) {
+      // Wi-Fi: mostrar SSID
+      subtitleText = _wifiInfo!['ssid']?.toString();
+    } else if (hasMobileInfo) {
+      // Dados Móveis: mostrar operadora, se não houver ou for desconhecido, mostrar IP
+      final carrier = _mobileInfo!['carrier']?.toString();
+      if (carrier != null &&
+          carrier.isNotEmpty &&
+          carrier.toLowerCase() != 'unknown' &&
+          carrier.toLowerCase() != 'desconhecido') {
+        subtitleText = carrier;
+      } else {
+        subtitleText = _mobileInfo!['ip']?.toString();
+        if (subtitleText != null) {
+          subtitleText = "IP: $subtitleText";
+        }
+      }
+    } else if (hasEthernetInfo) {
+      // Ethernet: mostrar IP
+      final ip = _ethernetInfo!['ip']?.toString();
+      if (ip != null) {
+        subtitleText = "IP: $ip";
+      }
+    }
+
+    if (!compact || !hasTechnicalInfo) {
+      // Modo expandido ou sem informações técnicas (para Totem)
+      return Card(
+        elevation: 3,
+        color: Colors.white,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Cabeçalho: Tipo de conexão
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: _connectionColor.withOpacity(0.12),
+                      shape: BoxShape.circle,
+                    ),
+                    child: Icon(_connectionIcon,
+                        color: _connectionColor, size: 22),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          "Conexão atual",
+                          style: TextStyle(
+                            fontSize: 13,
+                            color: Colors.grey[600],
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          _connectionName,
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                            color: _connectionColor,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  // Botão para abrir configurações de rede
+                  IconButton(
+                    icon: const Icon(Icons.settings, size: 20),
+                    color: Colors.grey[600],
+                    tooltip: 'Abrir configurações de rede',
+                    onPressed: _openNetworkSettings,
+                  ),
+                ],
+              ),
+              // Informações técnicas (se disponíveis)
+              if (hasTechnicalInfo) ...[
+                if (hasWiFiInfo) _buildTechnicalInfo(_wifiInfo!, 'Wi-Fi'),
+                if (hasMobileInfo) _buildTechnicalInfo(_mobileInfo!, 'Mobile'),
+                if (hasEthernetInfo)
+                  _buildTechnicalInfo(_ethernetInfo!, 'Ethernet'),
+              ],
+            ],
+          ),
+        ),
+      );
+    }
+
+    // Modo compacto expansível (para Smart)
     return Card(
       elevation: 3,
       color: Colors.white,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+      child: ExpansionTile(
+        initiallyExpanded: _isConnectionCardExpanded,
+        onExpansionChanged: (expanded) {
+          setState(() {
+            _isConnectionCardExpanded = expanded;
+          });
+        },
+        leading: Container(
+          padding: const EdgeInsets.all(8),
+          decoration: BoxDecoration(
+            color: _connectionColor.withOpacity(0.12),
+            shape: BoxShape.circle,
+          ),
+          child: Icon(_connectionIcon, color: _connectionColor, size: 20),
+        ),
+        title: Text(
+          _connectionName,
+          style: TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.bold,
+            color: _connectionColor,
+          ),
+        ),
+        subtitle: subtitleText != null
+            ? Text(
+                subtitleText,
+                style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+              )
+            : null,
+        trailing: Row(
+          mainAxisSize: MainAxisSize.min,
           children: [
-            // Cabeçalho: Tipo de conexão
-            Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(10),
-                  decoration: BoxDecoration(
-                    color: _connectionColor.withOpacity(0.12),
-                    shape: BoxShape.circle,
-                  ),
-                  child:
-                      Icon(_connectionIcon, color: _connectionColor, size: 22),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        "Conexão atual",
-                        style: TextStyle(
-                          fontSize: 13,
-                          color: Colors.grey[600],
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        _connectionName,
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                          color: _connectionColor,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                // Botão para abrir configurações de rede
-                IconButton(
-                  icon: const Icon(Icons.settings, size: 20),
-                  color: Colors.grey[600],
-                  tooltip: 'Abrir configurações de rede',
-                  onPressed: _openNetworkSettings,
-                ),
-              ],
+            IconButton(
+              icon: const Icon(Icons.settings, size: 20),
+              color: Colors.grey[600],
+              tooltip: 'Abrir configurações de rede',
+              onPressed: _openNetworkSettings,
+              padding: EdgeInsets.zero,
+              constraints: const BoxConstraints(),
             ),
-            // Informações técnicas (se disponíveis)
-            if (hasTechnicalInfo) ...[
-              const Divider(height: 24),
-              if (hasWiFiInfo) _buildTechnicalInfo(_wifiInfo!, 'Wi-Fi'),
-              if (hasMobileInfo) _buildTechnicalInfo(_mobileInfo!, 'Mobile'),
-              if (hasEthernetInfo)
-                _buildTechnicalInfo(_ethernetInfo!, 'Ethernet'),
-            ],
+            const SizedBox(width: 8),
+            Icon(
+              _isConnectionCardExpanded ? Icons.expand_less : Icons.expand_more,
+              color: Colors.grey[600],
+            ),
           ],
         ),
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                if (hasWiFiInfo) _buildTechnicalInfo(_wifiInfo!, 'Wi-Fi'),
+                if (hasMobileInfo) _buildTechnicalInfo(_mobileInfo!, 'Mobile'),
+                if (hasEthernetInfo)
+                  _buildTechnicalInfo(_ethernetInfo!, 'Ethernet'),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -788,9 +779,10 @@ class _SpeedTestScreenState extends State<SpeedTestScreen> {
   }
 
   /// Constrói o grid de resultados (métricas)
-  Widget _buildResultsGrid(double screenWidth) {
-    final crossAxisCount = screenWidth > 600 ? 4 : 2;
-    final childAspectRatio = screenWidth > 600 ? 1.3 : 1.1;
+  Widget _buildResultsGrid({required bool isTotem}) {
+    // Totem: 4 colunas (1 linha), Smart: 2 colunas (2 linhas)
+    final crossAxisCount = isTotem ? 4 : 2;
+    final childAspectRatio = isTotem ? 1.4 : 1.1;
 
     return GridView.count(
       shrinkWrap: true,
@@ -831,6 +823,10 @@ class _SpeedTestScreenState extends State<SpeedTestScreen> {
         ((title == "Download" && _currentTestPhase.contains("download")) ||
             (title == "Upload" && _currentTestPhase.contains("upload")));
 
+    // Separa número e unidade para destacar o número
+    final valueText = value.toStringAsFixed(1);
+    const unitText = " Mbps";
+
     return AnimatedContainer(
       duration: const Duration(milliseconds: 300),
       curve: Curves.easeInOut,
@@ -866,14 +862,31 @@ class _SpeedTestScreenState extends State<SpeedTestScreen> {
             const SizedBox(height: 4),
             AnimatedSwitcher(
               duration: const Duration(milliseconds: 300),
-              child: Text(
-                "${value.toStringAsFixed(1)} Mbps",
+              child: Row(
                 key: ValueKey(value),
-                style: TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
-                  color: isUpdating ? color : Colors.grey[800],
-                ),
+                mainAxisAlignment: MainAxisAlignment.center,
+                crossAxisAlignment: CrossAxisAlignment.baseline,
+                textBaseline: TextBaseline.alphabetic,
+                children: [
+                  Text(
+                    valueText,
+                    style: TextStyle(
+                      fontSize: 28,
+                      fontWeight: FontWeight.bold,
+                      color: isUpdating ? color : Colors.grey[800],
+                    ),
+                  ),
+                  Text(
+                    unitText,
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.normal,
+                      color: isUpdating
+                          ? color.withOpacity(0.7)
+                          : Colors.grey[600],
+                    ),
+                  ),
+                ],
               ),
             ),
           ],
@@ -884,6 +897,19 @@ class _SpeedTestScreenState extends State<SpeedTestScreen> {
 
   Widget _buildMetricInfo(
       String title, String value, IconData icon, Color color) {
+    // Separa número e unidade quando possível
+    final hasNumber = RegExp(r'(\d+\.?\d*)').hasMatch(value);
+    String? numberPart;
+    String? unitPart;
+
+    if (hasNumber) {
+      final match = RegExp(r'(\d+\.?\d*)\s*(.*)').firstMatch(value);
+      if (match != null) {
+        numberPart = match.group(1);
+        unitPart = match.group(2)?.trim();
+      }
+    }
+
     return Card(
       elevation: 2,
       color: Colors.white,
@@ -895,11 +921,38 @@ class _SpeedTestScreenState extends State<SpeedTestScreen> {
           const SizedBox(height: 8),
           Text(title, style: TextStyle(color: Colors.grey[600], fontSize: 14)),
           const SizedBox(height: 4),
-          Text(value,
-              style: TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.grey[800])),
+          numberPart != null && unitPart != null && unitPart.isNotEmpty
+              ? Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  crossAxisAlignment: CrossAxisAlignment.baseline,
+                  textBaseline: TextBaseline.alphabetic,
+                  children: [
+                    Text(
+                      numberPart,
+                      style: TextStyle(
+                        fontSize: 28,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.grey[800],
+                      ),
+                    ),
+                    Text(
+                      " $unitPart",
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.normal,
+                        color: Colors.grey[600],
+                      ),
+                    ),
+                  ],
+                )
+              : Text(
+                  value,
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.grey[800],
+                  ),
+                ),
         ],
       ),
     );
@@ -918,7 +971,6 @@ class _SpeedTestScreenState extends State<SpeedTestScreen> {
           _latency = null;
           _testProgress = 0.0;
           _currentTestPhase = '';
-          _status = "Testando velocidade...";
         });
 
         // Executa o teste de velocidade primeiro
@@ -933,7 +985,6 @@ class _SpeedTestScreenState extends State<SpeedTestScreen> {
                 _uploadRate =
                     double.parse(upload.transferRate.toStringAsPrecision(3));
                 _testProgress = 0.66;
-                _status = "Testando latência...";
                 _currentTestPhase = 'Etapa 3 de 3';
               });
 
@@ -945,7 +996,6 @@ class _SpeedTestScreenState extends State<SpeedTestScreen> {
                   _isTesting = false;
                   _testProgress = 1.0;
                   _currentTestPhase = '';
-                  _status = "Teste concluído";
                 });
               }
             }
@@ -957,13 +1007,11 @@ class _SpeedTestScreenState extends State<SpeedTestScreen> {
                   _downloadRate = double.parse(
                       (data.transferRate * _downloadRateMultiplier)
                           .toStringAsPrecision(3));
-                  _status = "Testando download...";
                   _currentTestPhase = 'Etapa 1 de 3';
                   _testProgress = 0.0 + (percent / 100 * 0.33);
                 } else {
                   _uploadRate =
                       double.parse(data.transferRate.toStringAsPrecision(3));
-                  _status = "Testando upload...";
                   _currentTestPhase = 'Etapa 2 de 3';
                   _testProgress = 0.33 + (percent / 100 * 0.33);
                 }
@@ -974,7 +1022,6 @@ class _SpeedTestScreenState extends State<SpeedTestScreen> {
             if (mounted) {
               setState(() {
                 _isServerSelectionInProgress = true;
-                _status = "Selecionando servidor...";
                 _testProgress = 0.05;
               });
             }
@@ -1032,7 +1079,6 @@ class _SpeedTestScreenState extends State<SpeedTestScreen> {
       _testProgress = 0.0;
       _currentTestPhase = '';
       _latency = null;
-      _status = "Pronto para testar";
     });
     _loadConnectionType();
   }
