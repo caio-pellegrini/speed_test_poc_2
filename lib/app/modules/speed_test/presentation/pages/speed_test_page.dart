@@ -8,6 +8,7 @@ import '../mobx/speed_test.store.dart';
 
 class SpeedTestPage extends StatelessWidget {
   final SpeedTestStore store;
+  static const Color primaryColor = Color(0xFFFF6600);
 
   const SpeedTestPage({super.key, required this.store});
 
@@ -23,13 +24,13 @@ class SpeedTestPage extends StatelessWidget {
       builder: (_) => Scaffold(
         backgroundColor: Colors.grey[100],
         appBar: AppBar(
-          title: const Text("Diagnóstico de Rede - Totem"),
-          backgroundColor: Colors.blueAccent,
+          title: const Text("Diagnóstico de Rede"),
+          backgroundColor: primaryColor,
           bottom: store.isTesting
               ? PreferredSize(
                   preferredSize: const Size.fromHeight(60),
                   child: Container(
-                    color: Colors.blueAccent,
+                    color: primaryColor,
                     padding:
                         const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                     child: Column(
@@ -78,7 +79,7 @@ class SpeedTestPage extends StatelessWidget {
                           ? null
                           : () => _runTest(context, store),
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.blueAccent,
+                        backgroundColor: primaryColor,
                         disabledBackgroundColor: Colors.grey[400],
                         shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(10)),
@@ -136,7 +137,7 @@ class SpeedTestPage extends StatelessWidget {
                     ? null
                     : () => _runTest(context, store),
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.blueAccent,
+                  backgroundColor: primaryColor,
                   disabledBackgroundColor: Colors.grey[400],
                   shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(10)),
@@ -200,7 +201,7 @@ class SpeedTestPage extends StatelessWidget {
           ),
           child: Icon(
             icon,
-            color: isActive ? Colors.blueAccent : Colors.white.withOpacity(0.5),
+            color: isActive ? primaryColor : Colors.white.withOpacity(0.5),
             size: 20,
           ),
         ),
@@ -532,10 +533,11 @@ class SpeedTestPage extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.all(10),
                 decoration: BoxDecoration(
-                  color: Colors.blue.withOpacity(0.12),
+                  color: primaryColor.withOpacity(0.12),
                   shape: BoxShape.circle,
                 ),
-                child: const Icon(Icons.language, color: Colors.blue, size: 22),
+                child:
+                    const Icon(Icons.language, color: primaryColor, size: 22),
               ),
               const SizedBox(width: 12),
               Expanded(
@@ -558,7 +560,7 @@ class SpeedTestPage extends StatelessWidget {
                       style: const TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.bold,
-                        color: Colors.blue,
+                        color: primaryColor,
                       ),
                     ),
                   ],
@@ -597,7 +599,7 @@ class SpeedTestPage extends StatelessWidget {
                       ? "Erro"
                       : "${store.latency} ms",
               Icons.network_check,
-              Colors.orange,
+              Colors.blue,
             ),
             _buildMetricInfo(
               "VPN",
