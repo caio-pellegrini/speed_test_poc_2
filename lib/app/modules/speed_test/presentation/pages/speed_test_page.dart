@@ -73,30 +73,7 @@ class SpeedTestPage extends StatelessWidget {
                 children: [
                   _buildConnectionCard(context, store, compact: false),
                   const SizedBox(height: 20),
-                  SizedBox(
-                    width: double.infinity,
-                    height: 55,
-                    child: ElevatedButton(
-                      onPressed: (store.isTesting || !store.hasConnection)
-                          ? null
-                          : () => _runTest(context, store),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: primaryColor,
-                        disabledBackgroundColor: Colors.grey[400],
-                        shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(10)),
-                      ),
-                      child: Text(
-                        !store.hasConnection
-                            ? "SEM CONEXÃO"
-                            : store.hasTestResults
-                                ? "TESTAR NOVAMENTE"
-                                : "INICIAR TESTE",
-                        style:
-                            const TextStyle(color: Colors.white, fontSize: 16),
-                      ),
-                    ),
-                  ),
+                  _buildTestButton(context, store),
                 ],
               ),
             ),
@@ -142,29 +119,7 @@ class SpeedTestPage extends StatelessWidget {
               _buildServerIpCard(store),
             ],
             const SizedBox(height: 20),
-            SizedBox(
-              width: double.infinity,
-              height: 55,
-              child: ElevatedButton(
-                onPressed: (store.isTesting || !store.hasConnection)
-                    ? null
-                    : () => _runTest(context, store),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: primaryColor,
-                  disabledBackgroundColor: Colors.grey[400],
-                  shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(10)),
-                ),
-                child: Text(
-                  !store.hasConnection
-                      ? "SEM CONEXÃO"
-                      : store.hasTestResults
-                          ? "TESTAR NOVAMENTE"
-                          : "INICIAR TESTE",
-                  style: const TextStyle(color: Colors.white, fontSize: 16),
-                ),
-              ),
-            ),
+            _buildTestButton(context, store),
           ],
         ),
       ),
@@ -984,6 +939,34 @@ class SpeedTestPage extends StatelessWidget {
         'icon': Icons.cancel,
       };
     }
+  }
+
+  Widget _buildTestButton(BuildContext context, SpeedTestStore store) {
+    return Observer(
+      builder: (_) => SizedBox(
+        width: double.infinity,
+        height: 55,
+        child: ElevatedButton(
+          onPressed: (store.isTesting || !store.hasConnection)
+              ? null
+              : () => _runTest(context, store),
+          style: ElevatedButton.styleFrom(
+            backgroundColor: primaryColor,
+            disabledBackgroundColor: Colors.grey[400],
+            shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+          ),
+          child: Text(
+            !store.hasConnection
+                ? "SEM CONEXÃO"
+                : store.hasTestResults
+                    ? "INICIAR NOVO TESTE"
+                    : "INICIAR TESTE",
+            style: const TextStyle(color: Colors.white, fontSize: 16),
+          ),
+        ),
+      ),
+    );
   }
 
   Future<void> _runTest(BuildContext context, SpeedTestStore store) async {
