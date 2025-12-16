@@ -19,7 +19,7 @@ class NetworkInfoRepositoryImpl implements INetworkInfoRepository {
       final List<ConnectivityResult> results =
           await _connectivity.checkConnectivity();
       final connectionData = _convertConnectivityResults(results);
-      
+
       // Carrega informações detalhadas baseado no tipo
       Map<String, dynamic>? wifiInfo;
       Map<String, dynamic>? mobileInfo;
@@ -57,7 +57,7 @@ class NetworkInfoRepositoryImpl implements INetworkInfoRepository {
       (List<ConnectivityResult> results) async {
         try {
           final connectionData = _convertConnectivityResults(results);
-          
+
           Map<String, dynamic>? wifiInfo;
           Map<String, dynamic>? mobileInfo;
           Map<String, dynamic>? ethernetInfo;
@@ -93,10 +93,11 @@ class NetworkInfoRepositoryImpl implements INetworkInfoRepository {
   @override
   Future<int> testLatency({
     String host = '8.8.8.8',
-    Function(int pingCount)? onProgress,
+    int pingQuantity = 5,
+    Function(int pingCount, int? partialLatency)? onProgress,
   }) async {
     _isCancelled = false;
-    final ping = Ping(host, count: 5);
+    final ping = Ping(host, count: pingQuantity);
     int totalTime = 0;
     int successCount = 0;
     int pingCount = 0;
@@ -104,13 +105,31 @@ class NetworkInfoRepositoryImpl implements INetworkInfoRepository {
     try {
       await for (final PingData data in ping.stream) {
         if (_isCancelled) return 0;
+
+        // Limita a processar apenas 5 pings, mesmo que o stream emita mais eventos
+        if (pingCount >= pingQuantity) break;
+
         pingCount++;
-        // Chama o callback de progresso a cada ping recebido
-        onProgress?.call(pingCount);
+        int? partialLatency;
+
         if (data.response != null && data.response!.time != null) {
-          totalTime += data.response!.time!.inMilliseconds;
+          final pingTime = data.response!.time!.inMilliseconds;
+          totalTime += pingTime;
           successCount++;
+          // Calcula a latência parcial (média até o momento)
+          partialLatency = (totalTime / successCount).round();
+          if (kDebugMode) {
+            debugPrint(
+                'Ping #$pingCount: ${pingTime}ms (média parcial: ${partialLatency}ms)');
+          }
+        } else {
+          if (kDebugMode) {
+            debugPrint('Ping #$pingCount: timeout ou erro');
+          }
         }
+
+        // Chama o callback de progresso com o contador e a latência parcial
+        onProgress?.call(pingCount, partialLatency);
       }
     } catch (e) {
       if (kDebugMode) debugPrint("Erro no ping: $e");
@@ -198,7 +217,7 @@ class NetworkInfoRepositoryImpl implements INetworkInfoRepository {
       String? carrierName;
       String? networkTypeDisplay;
       String? simState;
-      
+
       try {
         final androidInfo = await CarrierInfo.getAndroidInfo();
         if (androidInfo != null && androidInfo.telephonyInfo.isNotEmpty) {
@@ -399,4 +418,3 @@ class NetworkInfoRepositoryImpl implements INetworkInfoRepository {
     }
   }
 }
-

@@ -48,7 +48,7 @@ class SpeedTestPage extends StatelessWidget {
             : LayoutBuilder(
                 builder: (context, constraints) {
                   if (isTotem) {
-                    return _buildTotemLayout(context, store);
+                    return _buildTotemLayout(context, store, constraints);
                   } else {
                     return _buildMobileLayout(context, store);
                   }
@@ -58,9 +58,10 @@ class SpeedTestPage extends StatelessWidget {
     );
   }
 
-  Widget _buildTotemLayout(BuildContext context, SpeedTestStore store) {
+  Widget _buildTotemLayout(
+      BuildContext context, SpeedTestStore store, BoxConstraints constraints) {
     return Observer(
-      builder: (_) => SingleChildScrollView(
+      builder: (_) => Padding(
         padding: const EdgeInsets.all(20.0),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -68,6 +69,7 @@ class SpeedTestPage extends StatelessWidget {
             Expanded(
               flex: 35,
               child: Column(
+                mainAxisSize: MainAxisSize.min,
                 children: [
                   _buildConnectionCard(context, store, compact: false),
                   const SizedBox(height: 20),
@@ -101,12 +103,23 @@ class SpeedTestPage extends StatelessWidget {
             const SizedBox(width: 20),
             Expanded(
               flex: 65,
-              child: Column(
-                children: [
-                  _buildResultsGrid(store, isTotem: true),
-                  const SizedBox(height: 10),
-                  _buildServerIpCard(store),
-                ],
+              child: LayoutBuilder(
+                builder: (context, rightConstraints) {
+                  return Column(
+                    children: [
+                      Expanded(
+                        child: _buildResultsGrid(
+                          store,
+                          isTotem: true,
+                          availableHeight: constraints.maxHeight,
+                          availableWidth: rightConstraints.maxWidth,
+                        ),
+                      ),
+                      const SizedBox(height: 10),
+                      _buildServerIpCard(store),
+                    ],
+                  );
+                },
               ),
             ),
           ],
@@ -570,46 +583,78 @@ class SpeedTestPage extends StatelessWidget {
     );
   }
 
-  Widget _buildResultsGrid(SpeedTestStore store, {required bool isTotem}) {
+  Widget _buildResultsGrid(SpeedTestStore store,
+      {required bool isTotem,
+      double? availableHeight,
+      double? availableWidth}) {
     return Observer(
       builder: (_) {
-        final crossAxisCount = isTotem ? 4 : 2;
-        final childAspectRatio = isTotem ? 1.4 : 1.1;
+        if (isTotem) {
+          // Grid 2x2 para totem
+          final crossAxisCount = 2;
+          // Calcula o aspect ratio baseado na altura e largura disponíveis
+          // Considera o espaçamento do grid (10px entre itens) e o card do servidor
+          final serverCardHeight =
+              80.0; // altura aproximada do card do servidor
+          final padding = 20.0 * 2; // padding top e bottom do layout
+          final spacing =
+              10.0; // espaçamento entre linhas (2 linhas = 1 espaço)
+          final spacingBetweenGridAndCard =
+              10.0; // espaçamento entre grid e card do servidor
+          final gridHeight = ((availableHeight ?? 400) -
+                  padding -
+                  serverCardHeight -
+                  spacing -
+                  spacingBetweenGridAndCard)
+              .clamp(
+                  100.0,
+                  double
+                      .infinity); // mínimo de 100px para evitar valores muito pequenos
+          final itemHeight = ((gridHeight / 2) - (spacing / 2))
+              .clamp(50.0, double.infinity); // mínimo de 50px por item
+          final itemWidth = (((availableWidth ?? 400) - spacing) / 2)
+              .clamp(50.0, double.infinity); // mínimo de 50px por item
+          final childAspectRatio = (itemWidth / itemHeight)
+              .clamp(0.5, 2.0); // aspect ratio entre 0.5 e 2.0
 
-        return GridView.count(
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          crossAxisCount: crossAxisCount,
-          crossAxisSpacing: 10,
-          mainAxisSpacing: 10,
-          childAspectRatio: childAspectRatio,
-          children: [
-            _buildMetricCard("Download", store.downloadRate, Icons.download,
-                Colors.green, store),
-            _buildMetricCard(
-                "Upload", store.uploadRate, Icons.upload, Colors.purple, store),
-            _buildMetricInfo(
-              "Latência",
-              store.latency == null
-                  ? "-- ms"
-                  : store.latency == -1
-                      ? "Erro"
-                      : "${store.latency} ms",
-              Icons.network_check,
-              Colors.blue,
-            ),
-            _buildMetricInfo(
-              "VPN",
-              store.latency != null &&
-                      store.latency! > 0 &&
-                      store.latency! < 100
-                  ? "Estável"
-                  : "Verificar",
-              Icons.vpn_lock,
-              Colors.blueGrey,
-            ),
-          ],
-        );
+          return GridView.count(
+            shrinkWrap: false,
+            physics: const NeverScrollableScrollPhysics(),
+            crossAxisCount: crossAxisCount,
+            crossAxisSpacing: 10,
+            mainAxisSpacing: 10,
+            childAspectRatio: childAspectRatio,
+            children: [
+              _buildMetricCard("Download", store.downloadRate, Icons.download,
+                  Colors.green, store),
+              _buildMetricCard("Upload", store.uploadRate, Icons.upload,
+                  Colors.purple, store),
+              _buildLatencyCard(store),
+              _buildQualityCard(store),
+            ],
+          );
+        } else {
+          // Layout mobile mantém como estava
+          final crossAxisCount = 2;
+          final childAspectRatio = 1.1;
+
+          return GridView.count(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            crossAxisCount: crossAxisCount,
+            crossAxisSpacing: 10,
+            mainAxisSpacing: 10,
+            childAspectRatio: childAspectRatio,
+            children: [
+              _buildMetricCard("Download", store.downloadRate, Icons.download,
+                  Colors.green, store),
+              _buildMetricCard("Upload", store.uploadRate, Icons.upload,
+                  Colors.purple, store),
+              _buildLatencyCard(store),
+              _buildQualityCard(store),
+            ],
+          );
+        }
       },
     );
   }
@@ -698,6 +743,26 @@ class SpeedTestPage extends StatelessWidget {
     );
   }
 
+  Widget _buildLatencyCard(SpeedTestStore store) {
+    return Observer(
+      builder: (_) {
+        final latencyValue = store.latency;
+        final value = latencyValue == null
+            ? "-- ms"
+            : latencyValue == -1
+                ? "Erro"
+                : "${latencyValue} ms";
+
+        return _buildMetricInfo(
+          "Latência",
+          value,
+          Icons.network_check,
+          Colors.blue,
+        );
+      },
+    );
+  }
+
   Widget _buildMetricInfo(
       String title, String value, IconData icon, Color color) {
     final hasNumber = RegExp(r'(\d+\.?\d*)').hasMatch(value);
@@ -758,6 +823,167 @@ class SpeedTestPage extends StatelessWidget {
         ],
       ),
     );
+  }
+
+  Widget _buildQualityCard(SpeedTestStore store) {
+    return Observer(
+      builder: (_) {
+        final quality = _calculateConnectionQuality(
+          store.isTesting,
+          store.downloadRate,
+          store.uploadRate,
+          store.latency,
+        );
+
+        final qualityText = quality['text'] as String;
+        final qualityColor = quality['color'] as Color;
+        final qualityIcon = quality['icon'] as IconData;
+
+        return Card(
+          elevation: 2,
+          color: Colors.white,
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(qualityIcon, size: 35, color: qualityColor),
+              const SizedBox(height: 8),
+              Text(
+                "Qualidade",
+                style: TextStyle(color: Colors.grey[600], fontSize: 14),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                qualityText,
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: qualityColor,
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Map<String, dynamic> _calculateConnectionQuality(
+    bool isTesting,
+    double downloadRate,
+    double uploadRate,
+    int? latency,
+  ) {
+    // Se o teste está em andamento, sempre mostra "Aguardando"
+    if (isTesting) {
+      return {
+        'text': 'Aguardando',
+        'color': Colors.grey,
+        'icon': Icons.hourglass_empty,
+      };
+    }
+
+    // Se não há resultados de teste ainda (após o teste ter terminado)
+    if (downloadRate == 0 && uploadRate == 0 && latency == null) {
+      return {
+        'text': 'Aguardando',
+        'color': Colors.grey,
+        'icon': Icons.hourglass_empty,
+      };
+    }
+
+    // Se há erro na latência
+    if (latency == -1) {
+      return {
+        'text': 'Sem Conexão',
+        'color': Colors.red,
+        'icon': Icons.error_outline,
+      };
+    }
+
+    int score = 0;
+    int maxScore = 0;
+
+    // Avalia Download (0-40 pontos)
+    // Para TEF e reconhecimento facial, precisamos de pelo menos 2 Mbps
+    maxScore += 40;
+    if (downloadRate >= 10) {
+      score += 40; // Excelente
+    } else if (downloadRate >= 5) {
+      score += 30; // Bom
+    } else if (downloadRate >= 2) {
+      score += 20; // Mínimo aceitável
+    } else if (downloadRate >= 1) {
+      score += 10; // Insuficiente
+    }
+    // downloadRate < 1 = 0 pontos
+
+    // Avalia Upload (0-30 pontos)
+    // Para upload de fotos AWS, precisamos de pelo menos 1 Mbps
+    maxScore += 30;
+    if (uploadRate >= 5) {
+      score += 30; // Excelente
+    } else if (uploadRate >= 2) {
+      score += 20; // Bom
+    } else if (uploadRate >= 1) {
+      score += 15; // Mínimo aceitável
+    } else if (uploadRate >= 0.5) {
+      score += 8; // Insuficiente
+    }
+    // uploadRate < 0.5 = 0 pontos
+
+    // Avalia Latência (0-30 pontos)
+    // Para TEF, latência baixa é crítica
+    maxScore += 30;
+    if (latency != null) {
+      if (latency < 50) {
+        score += 30; // Excelente
+      } else if (latency < 100) {
+        score += 25; // Muito bom
+      } else if (latency < 200) {
+        score += 15; // Aceitável
+      } else if (latency < 500) {
+        score += 8; // Ruim
+      }
+      // latency >= 500 = 0 pontos
+    }
+
+    // Calcula porcentagem
+    final percentage = maxScore > 0 ? (score / maxScore) * 100 : 0;
+
+    // Define qualidade baseada na porcentagem
+    if (percentage >= 80) {
+      return {
+        'text': 'Excelente',
+        'color': Colors.green.shade700,
+        'icon': Icons.check_circle,
+      };
+    } else if (percentage >= 60) {
+      return {
+        'text': 'Boa',
+        'color': Colors.lightGreen,
+        'icon': Icons.check_circle_outline,
+      };
+    } else if (percentage >= 40) {
+      return {
+        'text': 'Regular',
+        'color': Colors.orange,
+        'icon': Icons.warning_amber_rounded,
+      };
+    } else if (percentage >= 20) {
+      return {
+        'text': 'Ruim',
+        'color': Colors.deepOrange,
+        'icon': Icons.error_outline,
+      };
+    } else {
+      return {
+        'text': 'Insuficiente',
+        'color': Colors.red,
+        'icon': Icons.cancel,
+      };
+    }
   }
 
   Future<void> _runTest(BuildContext context, SpeedTestStore store) async {

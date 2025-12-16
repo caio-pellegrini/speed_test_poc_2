@@ -198,8 +198,12 @@ abstract class _SpeedTestStore with Store {
 
       // Executa teste de latência
       final latencyResult = await _testLatencyUseCase.call(
-        onProgress: (pingCount) {
+        onProgress: (pingCount, partialLatency) {
           _pingCount = pingCount;
+          // Atualiza a latência parcial durante o teste
+          if (partialLatency != null) {
+            latency = partialLatency;
+          }
           // Progresso: 0.66 + (contador / 5) * 0.33
           testProgress = 0.66 + ((_pingCount / 5) * 0.33).clamp(0.0, 0.34);
         },

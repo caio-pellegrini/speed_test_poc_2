@@ -10,10 +10,10 @@ abstract class INetworkInfoRepository {
   /// Testa a latência da conexão
   Future<int> testLatency({
     String host = '8.8.8.8',
-    Function(int pingCount)? onProgress,
+    int pingQuantity = 5,
+    Function(int pingCount, int? partialLatency)? onProgress,
   });
 
   /// Cancela o teste de latência
   void cancelLatencyTest();
 }
-

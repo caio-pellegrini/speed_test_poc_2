@@ -8,7 +8,7 @@ class TestLatencyUseCase {
 
   Future<int> call({
     String host = '8.8.8.8',
-    Function(int pingCount)? onProgress,
+    Function(int pingCount, int? partialLatency)? onProgress,
   }) async {
     try {
       return await repository.testLatency(
