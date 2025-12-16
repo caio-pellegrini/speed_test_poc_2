@@ -6,9 +6,15 @@ class TestLatencyUseCase {
 
   TestLatencyUseCase(this.repository);
 
-  Future<int> call({String host = '8.8.8.8'}) async {
+  Future<int> call({
+    String host = '8.8.8.8',
+    Function(int pingCount)? onProgress,
+  }) async {
     try {
-      return await repository.testLatency(host: host);
+      return await repository.testLatency(
+        host: host,
+        onProgress: onProgress,
+      );
     } catch (e) {
       throw NetworkException(
         'Erro ao testar latência: ${e.toString()}',

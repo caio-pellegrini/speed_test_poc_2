@@ -8,7 +8,10 @@ abstract class INetworkInfoRepository {
   Stream<ConnectionInfo> getConnectionTypeStream();
 
   /// Testa a latência da conexão
-  Future<int> testLatency({String host = '8.8.8.8'});
+  Future<int> testLatency({
+    String host = '8.8.8.8',
+    Function(int pingCount)? onProgress,
+  });
 
   /// Cancela o teste de latência
   void cancelLatencyTest();

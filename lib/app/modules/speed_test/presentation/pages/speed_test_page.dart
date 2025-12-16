@@ -178,11 +178,8 @@ class SpeedTestPage extends StatelessWidget {
           const SizedBox(height: 8),
           ClipRRect(
             borderRadius: BorderRadius.circular(4),
-            child: LinearProgressIndicator(
-              value: store.testProgress,
-              minHeight: 4,
-              backgroundColor: Colors.white.withOpacity(0.3),
-              valueColor: const AlwaysStoppedAnimation<Color>(Colors.white),
+            child: _AnimatedProgressBar(
+              progress: store.testProgress,
             ),
           ),
         ],
@@ -770,5 +767,78 @@ class SpeedTestPage extends StatelessWidget {
       DialogHelper.showError(
           context, 'Erro ao executar teste: ${e.toString()}');
     }
+  }
+}
+
+class _AnimatedProgressBar extends StatefulWidget {
+  final double progress;
+
+  const _AnimatedProgressBar({
+    required this.progress,
+  });
+
+  @override
+  State<_AnimatedProgressBar> createState() => _AnimatedProgressBarState();
+}
+
+class _AnimatedProgressBarState extends State<_AnimatedProgressBar>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+  late Animation<double> _animation;
+  double _previousProgress = 0.0;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      duration: const Duration(milliseconds: 400),
+      vsync: this,
+    );
+    _animation = Tween<double>(
+      begin: 0.0,
+      end: widget.progress,
+    ).animate(CurvedAnimation(
+      parent: _controller,
+      curve: Curves.easeOutCubic,
+    ));
+    _previousProgress = widget.progress;
+    _controller.value = widget.progress;
+  }
+
+  @override
+  void didUpdateWidget(_AnimatedProgressBar oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.progress != widget.progress) {
+      _previousProgress = oldWidget.progress;
+      _animation = Tween<double>(
+        begin: _previousProgress,
+        end: widget.progress,
+      ).animate(CurvedAnimation(
+        parent: _controller,
+        curve: Curves.easeOutCubic,
+      ));
+      _controller.forward(from: 0.0);
+    }
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: _animation,
+      builder: (context, child) {
+        return LinearProgressIndicator(
+          value: _animation.value.clamp(0.0, 1.0),
+          minHeight: 4,
+          backgroundColor: Colors.white.withOpacity(0.3),
+          valueColor: const AlwaysStoppedAnimation<Color>(Colors.white),
+        );
+      },
+    );
   }
 }

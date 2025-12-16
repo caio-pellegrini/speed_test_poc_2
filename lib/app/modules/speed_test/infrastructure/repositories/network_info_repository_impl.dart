@@ -91,15 +91,22 @@ class NetworkInfoRepositoryImpl implements INetworkInfoRepository {
   }
 
   @override
-  Future<int> testLatency({String host = '8.8.8.8'}) async {
+  Future<int> testLatency({
+    String host = '8.8.8.8',
+    Function(int pingCount)? onProgress,
+  }) async {
     _isCancelled = false;
     final ping = Ping(host, count: 5);
     int totalTime = 0;
     int successCount = 0;
+    int pingCount = 0;
 
     try {
       await for (final PingData data in ping.stream) {
         if (_isCancelled) return 0;
+        pingCount++;
+        // Chama o callback de progresso a cada ping recebido
+        onProgress?.call(pingCount);
         if (data.response != null && data.response!.time != null) {
           totalTime += data.response!.time!.inMilliseconds;
           successCount++;

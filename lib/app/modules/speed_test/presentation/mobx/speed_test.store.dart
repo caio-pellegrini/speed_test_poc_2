@@ -57,6 +57,11 @@ abstract class _SpeedTestStore with Store {
   @observable
   bool isConnectionCardExpanded = false;
 
+  // Contadores para progresso baseado em requisições
+  int _downloadRequestCount = 0;
+  int _uploadRequestCount = 0;
+  int _pingCount = 0;
+
   // Computed
   @computed
   bool get hasConnection {
@@ -151,21 +156,32 @@ abstract class _SpeedTestStore with Store {
       currentTestPhase = '';
       serverIp = null;
 
+      // Reset contadores
+      _downloadRequestCount = 0;
+      _uploadRequestCount = 0;
+      _pingCount = 0;
+
       // Executa teste de velocidade
       setServerSelectionInProgress(true);
       final result = await _runSpeedTestUseCase.call(
         onProgress: (download, upload) {
-          // Atualiza progresso baseado nas fases
+          // Atualiza progresso baseado em contadores de requisições
           if (download > 0 && upload == 0) {
             // Fase de download
             downloadRate = download;
             currentTestPhase = 'Etapa 1 de 3';
-            testProgress = 0.0 + ((download / 100) * 0.33).clamp(0.0, 0.33);
+            _downloadRequestCount++;
+            // Progresso: 0.0 + (contador / 45) * 0.33
+            testProgress =
+                0.0 + ((_downloadRequestCount / 45) * 0.33).clamp(0.0, 0.33);
           } else if (upload > 0) {
             // Fase de upload
             uploadRate = upload;
             currentTestPhase = 'Etapa 2 de 3';
-            testProgress = 0.33 + ((upload / 100) * 0.33).clamp(0.0, 0.33);
+            _uploadRequestCount++;
+            // Progresso: 0.33 + (contador / 45) * 0.33
+            testProgress =
+                0.33 + ((_uploadRequestCount / 45) * 0.33).clamp(0.0, 0.33);
           }
         },
         onServerSelected: (ip) {
@@ -181,7 +197,13 @@ abstract class _SpeedTestStore with Store {
       currentTestPhase = 'Etapa 3 de 3';
 
       // Executa teste de latência
-      final latencyResult = await _testLatencyUseCase.call();
+      final latencyResult = await _testLatencyUseCase.call(
+        onProgress: (pingCount) {
+          _pingCount = pingCount;
+          // Progresso: 0.66 + (contador / 5) * 0.33
+          testProgress = 0.66 + ((_pingCount / 5) * 0.33).clamp(0.0, 0.34);
+        },
+      );
       latency = latencyResult;
       isTesting = false;
       testProgress = 1.0;
@@ -202,6 +224,9 @@ abstract class _SpeedTestStore with Store {
     testProgress = 0.0;
     currentTestPhase = '';
     latency = null;
+    _downloadRequestCount = 0;
+    _uploadRequestCount = 0;
+    _pingCount = 0;
     loadConnectionInfo();
   }
 
@@ -213,9 +238,6 @@ abstract class _SpeedTestStore with Store {
   @action
   void setServerSelectionInProgress(bool value) {
     isServerSelectionInProgress = value;
-    if (value) {
-      testProgress = 0.05;
-    }
   }
 
   void dispose() {
