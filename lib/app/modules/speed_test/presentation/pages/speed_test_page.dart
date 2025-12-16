@@ -84,7 +84,11 @@ class SpeedTestPage extends StatelessWidget {
                             borderRadius: BorderRadius.circular(10)),
                       ),
                       child: Text(
-                        store.hasConnection ? "INICIAR TESTE" : "SEM CONEXÃO",
+                        !store.hasConnection
+                            ? "SEM CONEXÃO"
+                            : store.hasTestResults
+                                ? "TESTAR NOVAMENTE"
+                                : "INICIAR TESTE",
                         style:
                             const TextStyle(color: Colors.white, fontSize: 16),
                       ),
@@ -99,10 +103,8 @@ class SpeedTestPage extends StatelessWidget {
               child: Column(
                 children: [
                   _buildResultsGrid(store, isTotem: true),
-                  if (store.serverIp != null) ...[
-                    const SizedBox(height: 10),
-                    _buildServerIpCard(store),
-                  ],
+                  const SizedBox(height: 10),
+                  _buildServerIpCard(store),
                 ],
               ),
             ),
@@ -140,7 +142,11 @@ class SpeedTestPage extends StatelessWidget {
                       borderRadius: BorderRadius.circular(10)),
                 ),
                 child: Text(
-                  store.hasConnection ? "INICIAR TESTE" : "SEM CONEXÃO",
+                  !store.hasConnection
+                      ? "SEM CONEXÃO"
+                      : store.hasTestResults
+                          ? "TESTAR NOVAMENTE"
+                          : "INICIAR TESTE",
                   style: const TextStyle(color: Colors.white, fontSize: 16),
                 ),
               ),

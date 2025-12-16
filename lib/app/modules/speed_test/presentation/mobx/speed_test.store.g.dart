@@ -37,6 +37,13 @@ mixin _$SpeedTestStore on _SpeedTestStore, Store {
           () => super.connectionColor,
           name: '_SpeedTestStore.connectionColor'))
       .value;
+  Computed<bool>? _$hasTestResultsComputed;
+
+  @override
+  bool get hasTestResults =>
+      (_$hasTestResultsComputed ??= Computed<bool>(() => super.hasTestResults,
+              name: '_SpeedTestStore.hasTestResults'))
+          .value;
 
   late final _$downloadRateAtom =
       Atom(name: '_SpeedTestStore.downloadRate', context: context);
@@ -280,7 +287,8 @@ isConnectionCardExpanded: ${isConnectionCardExpanded},
 hasConnection: ${hasConnection},
 connectionName: ${connectionName},
 connectionIcon: ${connectionIcon},
-connectionColor: ${connectionColor}
+connectionColor: ${connectionColor},
+hasTestResults: ${hasTestResults}
     ''';
   }
 }

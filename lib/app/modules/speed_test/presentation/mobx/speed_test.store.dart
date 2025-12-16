@@ -106,6 +106,11 @@ abstract class _SpeedTestStore with Store {
     }
   }
 
+  @computed
+  bool get hasTestResults {
+    return !isTesting && (downloadRate > 0 || uploadRate > 0 || latency != null);
+  }
+
   // Actions
   @action
   Future<void> loadConnectionInfo() async {
