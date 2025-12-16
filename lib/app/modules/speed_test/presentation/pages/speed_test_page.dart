@@ -342,67 +342,81 @@ class SpeedTestPage extends StatelessWidget {
           color: Colors.white,
           shape:
               RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-          child: ExpansionTile(
-            initiallyExpanded: store.isConnectionCardExpanded,
-            onExpansionChanged: (expanded) {
-              store.toggleConnectionCardExpanded();
-            },
-            leading: Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: store.connectionColor.withOpacity(0.12),
-                shape: BoxShape.circle,
-              ),
-              child: Icon(store.connectionIcon,
-                  color: store.connectionColor, size: 20),
+          child: Theme(
+            data: Theme.of(context).copyWith(
+              dividerColor: Colors.transparent,
             ),
-            title: Text(
-              store.connectionName,
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
-                color: store.connectionColor,
+            child: ExpansionTile(
+              initiallyExpanded: store.isConnectionCardExpanded,
+              onExpansionChanged: (expanded) {
+                store.toggleConnectionCardExpanded();
+              },
+              tilePadding:
+                  const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              childrenPadding: EdgeInsets.zero,
+              shape: const RoundedRectangleBorder(
+                borderRadius: BorderRadius.zero,
               ),
-            ),
-            subtitle: subtitleText != null
-                ? Text(
-                    subtitleText,
-                    style: TextStyle(fontSize: 12, color: Colors.grey[600]),
-                  )
-                : null,
-            trailing: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                IconButton(
-                  icon: const Icon(Icons.settings, size: 20),
-                  color: Colors.grey[600],
-                  tooltip: 'Abrir configurações de rede',
-                  onPressed: () => _openNetworkSettings(context),
-                  padding: EdgeInsets.zero,
-                  constraints: const BoxConstraints(),
+              collapsedShape: const RoundedRectangleBorder(
+                borderRadius: BorderRadius.zero,
+              ),
+              leading: Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: store.connectionColor.withOpacity(0.12),
+                  shape: BoxShape.circle,
                 ),
-                const SizedBox(width: 8),
-                Icon(
-                  store.isConnectionCardExpanded
-                      ? Icons.expand_less
-                      : Icons.expand_more,
-                  color: Colors.grey[600],
+                child: Icon(store.connectionIcon,
+                    color: store.connectionColor, size: 20),
+              ),
+              title: Text(
+                store.connectionName,
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                  color: store.connectionColor,
+                ),
+              ),
+              subtitle: subtitleText != null
+                  ? Text(
+                      subtitleText,
+                      style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                    )
+                  : null,
+              trailing: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  IconButton(
+                    icon: const Icon(Icons.settings, size: 20),
+                    color: Colors.grey[600],
+                    tooltip: 'Abrir configurações de rede',
+                    onPressed: () => _openNetworkSettings(context),
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(),
+                  ),
+                  const SizedBox(width: 8),
+                  Icon(
+                    store.isConnectionCardExpanded
+                        ? Icons.expand_less
+                        : Icons.expand_more,
+                    color: Colors.grey[600],
+                  ),
+                ],
+              ),
+              children: [
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      if (hasTechnicalInfo)
+                        _buildTechnicalInfo(
+                            connectionDetails, connectionInfo.type),
+                    ],
+                  ),
                 ),
               ],
             ),
-            children: [
-              Padding(
-                padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    if (hasTechnicalInfo)
-                      _buildTechnicalInfo(
-                          connectionDetails, connectionInfo.type),
-                  ],
-                ),
-              ),
-            ],
           ),
         );
       },
