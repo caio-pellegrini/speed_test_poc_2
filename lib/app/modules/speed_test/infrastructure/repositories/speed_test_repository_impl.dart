@@ -5,7 +5,8 @@ import '../../domain/repositories/ispeed_test_repository.dart';
 import '../../domain/exceptions/speed_test_exception.dart';
 
 class SpeedTestRepositoryImpl implements ISpeedTestRepository {
-  final FlutterInternetSpeedTest _speedTest = FlutterInternetSpeedTest()..enableLog();
+  final FlutterInternetSpeedTest _speedTest = FlutterInternetSpeedTest()
+    ..enableLog();
 
   @override
   Future<SpeedResult> runSpeedTest({
@@ -99,4 +100,3 @@ class SpeedTestRepositoryImpl implements ISpeedTestRepository {
     // O cancelamento é tratado pelo callback onCancel
   }
 }
-

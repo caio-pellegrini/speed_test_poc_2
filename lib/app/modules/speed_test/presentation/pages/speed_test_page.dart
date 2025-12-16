@@ -183,6 +183,32 @@ class SpeedTestPage extends StatelessWidget {
     );
   }
 
+  Widget _buildConnectionIcon(SpeedTestStore store,
+      {required double size, required double padding}) {
+    return Observer(
+      builder: (_) => Container(
+        padding: EdgeInsets.all(padding),
+        decoration: BoxDecoration(
+          color: store.connectionColor.withOpacity(0.12),
+          shape: BoxShape.circle,
+        ),
+        child: Icon(store.connectionIcon,
+            color: store.connectionColor, size: size),
+      ),
+    );
+  }
+
+  Widget _buildSettingsButton(BuildContext context, {bool compact = false}) {
+    return IconButton(
+      icon: const Icon(Icons.settings, size: 20),
+      color: Colors.grey[600],
+      tooltip: 'Abrir configurações de rede',
+      onPressed: () => _openNetworkSettings(context),
+      padding: compact ? EdgeInsets.zero : null,
+      constraints: compact ? const BoxConstraints() : null,
+    );
+  }
+
   Future<void> _openNetworkSettings(BuildContext context) async {
     try {
       if (Platform.isAndroid) {
@@ -257,15 +283,7 @@ class SpeedTestPage extends StatelessWidget {
                 children: [
                   Row(
                     children: [
-                      Container(
-                        padding: const EdgeInsets.all(10),
-                        decoration: BoxDecoration(
-                          color: store.connectionColor.withOpacity(0.12),
-                          shape: BoxShape.circle,
-                        ),
-                        child: Icon(store.connectionIcon,
-                            color: store.connectionColor, size: 22),
-                      ),
+                      _buildConnectionIcon(store, size: 22, padding: 10),
                       const SizedBox(width: 12),
                       Expanded(
                         child: Column(
@@ -291,12 +309,7 @@ class SpeedTestPage extends StatelessWidget {
                           ],
                         ),
                       ),
-                      IconButton(
-                        icon: const Icon(Icons.settings, size: 20),
-                        color: Colors.grey[600],
-                        tooltip: 'Abrir configurações de rede',
-                        onPressed: () => _openNetworkSettings(context),
-                      ),
+                      _buildSettingsButton(context),
                     ],
                   ),
                   if (hasTechnicalInfo) ...[
@@ -332,15 +345,7 @@ class SpeedTestPage extends StatelessWidget {
               collapsedShape: const RoundedRectangleBorder(
                 borderRadius: BorderRadius.zero,
               ),
-              leading: Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: store.connectionColor.withOpacity(0.12),
-                  shape: BoxShape.circle,
-                ),
-                child: Icon(store.connectionIcon,
-                    color: store.connectionColor, size: 20),
-              ),
+              leading: _buildConnectionIcon(store, size: 20, padding: 8),
               title: Text(
                 store.connectionName,
                 style: TextStyle(
@@ -358,14 +363,7 @@ class SpeedTestPage extends StatelessWidget {
               trailing: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  IconButton(
-                    icon: const Icon(Icons.settings, size: 20),
-                    color: Colors.grey[600],
-                    tooltip: 'Abrir configurações de rede',
-                    onPressed: () => _openNetworkSettings(context),
-                    padding: EdgeInsets.zero,
-                    constraints: const BoxConstraints(),
-                  ),
+                  _buildSettingsButton(context, compact: true),
                   const SizedBox(width: 8),
                   Icon(
                     store.isConnectionCardExpanded
@@ -538,6 +536,17 @@ class SpeedTestPage extends StatelessWidget {
     );
   }
 
+  List<Widget> _buildGridChildren(SpeedTestStore store) {
+    return [
+      _buildMetricCard(
+          "Download", store.downloadRate, Icons.download, Colors.green, store),
+      _buildMetricCard(
+          "Upload", store.uploadRate, Icons.upload, Colors.purple, store),
+      _buildLatencyCard(store),
+      _buildQualityCard(store),
+    ];
+  }
+
   Widget _buildResultsGrid(SpeedTestStore store,
       {required bool isTotem,
       double? availableHeight,
@@ -579,14 +588,7 @@ class SpeedTestPage extends StatelessWidget {
             crossAxisSpacing: 10,
             mainAxisSpacing: 10,
             childAspectRatio: childAspectRatio,
-            children: [
-              _buildMetricCard("Download", store.downloadRate, Icons.download,
-                  Colors.green, store),
-              _buildMetricCard("Upload", store.uploadRate, Icons.upload,
-                  Colors.purple, store),
-              _buildLatencyCard(store),
-              _buildQualityCard(store),
-            ],
+            children: _buildGridChildren(store),
           );
         } else {
           // Layout mobile mantém como estava
@@ -600,14 +602,7 @@ class SpeedTestPage extends StatelessWidget {
             crossAxisSpacing: 10,
             mainAxisSpacing: 10,
             childAspectRatio: childAspectRatio,
-            children: [
-              _buildMetricCard("Download", store.downloadRate, Icons.download,
-                  Colors.green, store),
-              _buildMetricCard("Upload", store.uploadRate, Icons.upload,
-                  Colors.purple, store),
-              _buildLatencyCard(store),
-              _buildQualityCard(store),
-            ],
+            children: _buildGridChildren(store),
           );
         }
       },
