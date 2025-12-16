@@ -357,7 +357,7 @@ class SpeedTestPage extends StatelessWidget {
               subtitle: subtitleText != null
                   ? Text(
                       subtitleText,
-                      style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                      style: TextStyle(fontSize: 13, color: Colors.grey[600]),
                     )
                   : null,
               trailing: Row(
@@ -463,7 +463,7 @@ class SpeedTestPage extends StatelessWidget {
           child: Text(
             label,
             style: TextStyle(
-              fontSize: 12,
+              fontSize: 13,
               color: Colors.grey[600],
               fontWeight: FontWeight.w600,
             ),
@@ -473,7 +473,7 @@ class SpeedTestPage extends StatelessWidget {
           child: Text(
             value,
             style: const TextStyle(
-              fontSize: 12,
+              fontSize: 13,
               fontWeight: FontWeight.w500,
               color: Colors.black87,
             ),
@@ -559,7 +559,7 @@ class SpeedTestPage extends StatelessWidget {
           // Calcula o aspect ratio baseado na altura e largura disponíveis
           // Considera o espaçamento do grid (10px entre itens) e o card do servidor
           final serverCardHeight =
-              80.0; // altura aproximada do card do servidor
+              75.0; // altura aproximada do card do servidor
           final padding = 20.0 * 2; // padding top e bottom do layout
           final spacing =
               10.0; // espaçamento entre linhas (2 linhas = 1 espaço)
@@ -585,8 +585,8 @@ class SpeedTestPage extends StatelessWidget {
             shrinkWrap: false,
             physics: const NeverScrollableScrollPhysics(),
             crossAxisCount: crossAxisCount,
-            crossAxisSpacing: 10,
-            mainAxisSpacing: 10,
+            crossAxisSpacing: 15,
+            mainAxisSpacing: 15,
             childAspectRatio: childAspectRatio,
             children: _buildGridChildren(store),
           );
