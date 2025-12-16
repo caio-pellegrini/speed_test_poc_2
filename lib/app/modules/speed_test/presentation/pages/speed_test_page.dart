@@ -30,8 +30,8 @@ class SpeedTestPage extends StatelessWidget {
                   preferredSize: const Size.fromHeight(60),
                   child: Container(
                     color: Colors.blueAccent,
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 16, vertical: 8),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                     child: Column(
                       children: [
                         _buildProgressBarWithIcons(store),
@@ -85,7 +85,8 @@ class SpeedTestPage extends StatelessWidget {
                       ),
                       child: Text(
                         store.hasConnection ? "INICIAR TESTE" : "SEM CONEXÃO",
-                        style: const TextStyle(color: Colors.white, fontSize: 16),
+                        style:
+                            const TextStyle(color: Colors.white, fontSize: 16),
                       ),
                     ),
                   ),
@@ -163,8 +164,8 @@ class SpeedTestPage extends StatelessWidget {
               _buildPhaseIcon(
                   Icons.upload, 'Upload', store.testProgress > 0.33),
               const SizedBox(width: 20),
-              _buildPhaseIcon(Icons.network_check, 'Latência',
-                  store.testProgress > 0.66),
+              _buildPhaseIcon(
+                  Icons.network_check, 'Latência', store.testProgress > 0.66),
             ],
           ),
           const SizedBox(height: 8),
@@ -193,9 +194,7 @@ class SpeedTestPage extends StatelessWidget {
           ),
           child: Icon(
             icon,
-            color: isActive
-                ? Colors.blueAccent
-                : Colors.white.withOpacity(0.5),
+            color: isActive ? Colors.blueAccent : Colors.white.withOpacity(0.5),
             size: 20,
           ),
         ),
@@ -233,8 +232,8 @@ class SpeedTestPage extends StatelessWidget {
     }
   }
 
-  Widget _buildConnectionCard(
-      BuildContext context, SpeedTestStore store, {bool compact = true}) {
+  Widget _buildConnectionCard(BuildContext context, SpeedTestStore store,
+      {bool compact = true}) {
     return Observer(
       builder: (_) {
         if (store.connectionInfo == null) {
@@ -330,8 +329,7 @@ class SpeedTestPage extends StatelessWidget {
                   ),
                   if (hasTechnicalInfo) ...[
                     const SizedBox(height: 12),
-                    _buildTechnicalInfo(connectionDetails,
-                        connectionInfo.type),
+                    _buildTechnicalInfo(connectionDetails, connectionInfo.type),
                   ],
                 ],
               ),
@@ -342,7 +340,8 @@ class SpeedTestPage extends StatelessWidget {
         return Card(
           elevation: 3,
           color: Colors.white,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
           child: ExpansionTile(
             initiallyExpanded: store.isConnectionCardExpanded,
             onExpansionChanged: (expanded) {
@@ -398,7 +397,8 @@ class SpeedTestPage extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     if (hasTechnicalInfo)
-                      _buildTechnicalInfo(connectionDetails, connectionInfo.type),
+                      _buildTechnicalInfo(
+                          connectionDetails, connectionInfo.type),
                   ],
                 ),
               ),
@@ -409,8 +409,7 @@ class SpeedTestPage extends StatelessWidget {
     );
   }
 
-  Widget _buildTechnicalInfo(
-      Map<String, dynamic> info, String connectionType) {
+  Widget _buildTechnicalInfo(Map<String, dynamic> info, String connectionType) {
     final hasError = info.containsKey('error');
 
     if (hasError) {
@@ -431,8 +430,8 @@ class SpeedTestPage extends StatelessWidget {
           const SizedBox(height: 6),
           _buildInfoRow("BSSID", info['bssid'] ?? '--'),
           const SizedBox(height: 6),
-          _buildInfoRow("Sinal",
-              info['signal'] != null ? "${info['signal']} dBm" : '--'),
+          _buildInfoRow(
+              "Sinal", info['signal'] != null ? "${info['signal']} dBm" : '--'),
           const SizedBox(height: 6),
           _buildInfoRow("Frequência",
               info['frequency'] != null ? "${info['frequency']} MHz" : '--'),
@@ -602,7 +601,7 @@ class SpeedTestPage extends StatelessWidget {
       builder: (_) {
         final isUpdating = store.isTesting &&
             ((title == "Download" &&
-                store.currentTestPhase.contains("download")) ||
+                    store.currentTestPhase.contains("download")) ||
                 (title == "Upload" &&
                     store.currentTestPhase.contains("upload")));
 
@@ -746,8 +745,8 @@ class SpeedTestPage extends StatelessWidget {
     try {
       await store.runTest();
     } catch (e) {
-      DialogHelper.showError(context, 'Erro ao executar teste: ${e.toString()}');
+      DialogHelper.showError(
+          context, 'Erro ao executar teste: ${e.toString()}');
     }
   }
 }
-

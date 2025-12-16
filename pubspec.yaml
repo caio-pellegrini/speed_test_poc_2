@@ -33,7 +33,6 @@ dependencies:
 
 
   flutter_speed_test_plus: ^1.0.10
-  syncfusion_flutter_gauges: ^27.2.5
   dart_ping: ^9.0.1
   connectivity_plus: ^6.0.0
   wifi_iot: ^0.3.19
