@@ -2,6 +2,7 @@ import 'package:flutter_modular/flutter_modular.dart';
 import 'domain/repositories/ispeed_test_repository.dart';
 import 'domain/repositories/inetwork_info_repository.dart';
 import 'infrastructure/repositories/speed_test_repository_impl.dart';
+import 'infrastructure/repositories/parallel_speed_test_repository_impl.dart';
 import 'infrastructure/repositories/network_info_repository_impl.dart';
 import 'domain/usecase/run_speed_test_usecase.dart';
 import 'domain/usecase/get_connection_info_usecase.dart';
@@ -13,7 +14,9 @@ class SpeedTestModule extends Module {
   @override
   void binds(i) {
     // Repositories
-    i.addLazySingleton<ISpeedTestRepository>(SpeedTestRepositoryImpl.new);
+    // Usa implementação paralela para melhor performance em Wi-Fi
+    // Para voltar à implementação original, substitua por: SpeedTestRepositoryImpl.new
+    i.addLazySingleton<ISpeedTestRepository>(ParallelSpeedTestRepositoryImpl.new);
     i.addLazySingleton<INetworkInfoRepository>(NetworkInfoRepositoryImpl.new);
 
     // Use Cases
