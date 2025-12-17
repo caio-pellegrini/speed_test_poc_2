@@ -19,7 +19,7 @@ class SpeedTestRepositoryImpl implements ISpeedTestRepository {
     String? serverIp;
     bool isCompleted = false;
 
-    const double downloadRateMultiplier = 2.5;
+    const double downloadRateMultiplier = 1;
 
     try {
       await _speedTest.startTesting(

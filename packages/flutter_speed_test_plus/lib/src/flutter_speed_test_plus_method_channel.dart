@@ -10,12 +10,19 @@ import 'package:tuple_dart/tuple.dart';
 import 'callbacks_enum.dart';
 import 'flutter_speed_test_plus_platform_interface.dart';
 
+// Constants for ramp-up discard and sample tracking
+const double RAMP_UP_DISCARD_PERCENT = 0.25; // Discard first 25% of samples
+
 /// An implementation of [FlutterInternetSpeedTestPlatform] that uses method channels.
 class MethodChannelFlutterInternetSpeedTest
     extends FlutterInternetSpeedTestPlatform {
   /// The method channel used to interact with the native platform.
-  final _channel = const MethodChannel('com.softradix.flutter_speed_test_plus/method');
+  final _channel =
+      const MethodChannel('com.softradix.flutter_speed_test_plus/method');
   final _logger = Logger();
+
+  // Store temporal samples for ramp-up discard (timestamp -> throughput in bps)
+  final Map<int, List<MapEntry<int, double>>> _temporalSamples = {};
 
   Future<void> _methodCallHandler(MethodCall call) async {
     if (isLogEnabled) {
@@ -25,119 +32,221 @@ class MethodChannelFlutterInternetSpeedTest
 
     switch (call.method) {
       case 'callListener':
-        if (call.arguments["id"] as int == CallbacksEnum.startDownLoadTesting.index) {
+        if (call.arguments["id"] as int ==
+            CallbacksEnum.startDownLoadTesting.index) {
           if (call.arguments['type'] == ListenerEnum.complete.index) {
-            downloadSteps++;
-            downloadRate += int.parse((call.arguments['transferRate'] ~/ 1000).toString());
-            if (isLogEnabled) {
-              _logger.d('download steps is $downloadSteps');
-              _logger.d('download rate is $downloadRate');
-            }
-            double average = (downloadRate ~/ downloadSteps).toDouble();
-            SpeedUnit unit = SpeedUnit.kbps;
-            average /= 1000;
-            unit = SpeedUnit.mbps;
-            callbacksById[call.arguments["id"]]!.item3(average, unit);
-            downloadSteps = 0;
-            downloadRate = 0;
-            callbacksById.remove(call.arguments["id"]);
-          } else if (call.arguments['type'] == ListenerEnum.error.index) {
-            if (isLogEnabled) {
-              _logger.d('onError : ${call.arguments["speedTestError"]}');
-              _logger.d('onError : ${call.arguments["errorMessage"]}');
-            }
-            callbacksById[call.arguments["id"]]!.item1(
-                call.arguments['errorMessage'], call.arguments['speedTestError']);
-            downloadSteps = 0;
-            downloadRate = 0;
-            callbacksById.remove(call.arguments["id"]);
-          } else if (call.arguments['type'] == ListenerEnum.progress.index) {
-            double rate = (call.arguments['transferRate'] ~/ 1000).toDouble();
-            if (isLogEnabled) {
-              _logger.d('rate is $rate');
-            }
-            if (rate != 0) downloadSteps++;
-            downloadRate += rate.toInt();
-            SpeedUnit unit = SpeedUnit.kbps;
-            rate /= 1000;
-            unit = SpeedUnit.mbps;
-            callbacksById[call.arguments["id"]]!
-                .item2(call.arguments['percent'].toDouble(), rate, unit);
-          } else if (call.arguments['type'] == ListenerEnum.cancel.index) {
-            if (isLogEnabled) {
-              _logger.d('onCancel : ${call.arguments["id"]}');
-            }
-            callbacksById[call.arguments["id"]]!.item4();
-            downloadSteps = 0;
-            downloadRate = 0;
-            callbacksById.remove(call.arguments["id"]);
-          }
-        } else if (call.arguments["id"] as int == CallbacksEnum.startUploadTesting.index) {
-          if (call.arguments['type'] == ListenerEnum.complete.index) {
-            if (isLogEnabled) {
-              _logger.d('onComplete : ${call.arguments['transferRate']}');
+            // Calculate final result using aggregated throughput with ramp-up discard
+            final callbackId = call.arguments["id"] as int;
+            final samples = _temporalSamples[callbackId] ?? [];
+
+            if (samples.isEmpty) {
+              // Fallback: use the final transfer rate directly (already aggregated from native)
+              final transferRateBps = call.arguments['transferRate'] as double;
+              final transferRateMbps = transferRateBps / 1000000.0;
+              callbacksById[callbackId]!
+                  .item3(transferRateMbps, SpeedUnit.mbps);
+            } else {
+              // Discard ramp-up period (first 25% of samples)
+              final rampUpDiscardCount =
+                  (samples.length * RAMP_UP_DISCARD_PERCENT).toInt();
+              final stableSamples = samples.sublist(rampUpDiscardCount);
+
+              if (stableSamples.isEmpty) {
+                // Fallback if no stable samples
+                final transferRateBps =
+                    call.arguments['transferRate'] as double;
+                final transferRateMbps = transferRateBps / 1000000.0;
+                callbacksById[callbackId]!
+                    .item3(transferRateMbps, SpeedUnit.mbps);
+              } else {
+                // Calculate average of stable samples (these are already aggregated throughput values)
+                final totalThroughput = stableSamples.fold<double>(
+                    0.0, (sum, entry) => sum + entry.value);
+                final averageThroughputBps =
+                    totalThroughput / stableSamples.length;
+                final averageThroughputMbps = averageThroughputBps / 1000000.0;
+
+                if (isLogEnabled) {
+                  _logger.d(
+                      'Final download: ${stableSamples.length} stable samples (discarded $rampUpDiscardCount ramp-up)');
+                  _logger.d(
+                      'Average aggregated throughput: ${averageThroughputMbps.toStringAsFixed(2)} Mbps');
+                }
+
+                callbacksById[callbackId]!
+                    .item3(averageThroughputMbps, SpeedUnit.mbps);
+              }
             }
 
-            uploadSteps++;
-            uploadRate += int.parse((call.arguments['transferRate'] ~/ 1000).toString());
-            if (isLogEnabled) {
-              _logger.d('upload steps is $uploadSteps');
-              _logger.d('upload rate is $uploadRate');
-            }
-            double average = (uploadRate ~/ uploadSteps).toDouble();
-            SpeedUnit unit = SpeedUnit.kbps;
-            average /= 1000;
-            unit = SpeedUnit.mbps;
-            callbacksById[call.arguments["id"]]!.item3(average, unit);
-            uploadSteps = 0;
-            uploadRate = 0;
-            callbacksById.remove(call.arguments["id"]);
+            // Cleanup
+            _temporalSamples.remove(callbackId);
+            downloadSteps = 0;
+            downloadRate = 0;
+            callbacksById.remove(callbackId);
           } else if (call.arguments['type'] == ListenerEnum.error.index) {
             if (isLogEnabled) {
               _logger.d('onError : ${call.arguments["speedTestError"]}');
               _logger.d('onError : ${call.arguments["errorMessage"]}');
             }
             callbacksById[call.arguments["id"]]!.item1(
-                call.arguments['errorMessage'], call.arguments['speedTestError']);
+                call.arguments['errorMessage'],
+                call.arguments['speedTestError']);
+            // Cleanup on error
+            final callbackId = call.arguments["id"] as int;
+            _temporalSamples.remove(callbackId);
+            downloadSteps = 0;
+            downloadRate = 0;
+            callbacksById.remove(callbackId);
           } else if (call.arguments['type'] == ListenerEnum.progress.index) {
-            double rate = (call.arguments['transferRate'] ~/ 1000).toDouble();
+            // The transferRate from native is already aggregated (sum of all parallel connections)
+            // Store it as a temporal sample for final calculation with ramp-up discard
+            final callbackId = call.arguments["id"] as int;
+            final transferRateBps = call.arguments['transferRate'] as double;
+            final timestamp = DateTime.now().millisecondsSinceEpoch;
+
+            // Initialize list if needed
+            _temporalSamples[callbackId] ??= [];
+
+            // Store sample (timestamp -> aggregated throughput in bps)
+            _temporalSamples[callbackId]!
+                .add(MapEntry(timestamp, transferRateBps));
+
+            // Convert to Mbps for progress callback (this is already aggregated from native)
+            final transferRateMbps = transferRateBps / 1000000.0;
+
             if (isLogEnabled) {
-              _logger.d('rate is $rate');
+              _logger.d(
+                  'Progress: ${transferRateMbps.toStringAsFixed(2)} Mbps (aggregated from all connections)');
             }
-            if (rate != 0) uploadSteps++;
-            uploadRate += rate.toInt();
-            SpeedUnit unit = SpeedUnit.kbps;
-            rate /= 1000.0;
-            unit = SpeedUnit.mbps;
-            callbacksById[call.arguments["id"]]!
-                .item2(call.arguments['percent'].toDouble(), rate, unit);
+
+            callbacksById[callbackId]!.item2(
+                call.arguments['percent'].toDouble(),
+                transferRateMbps,
+                SpeedUnit.mbps);
           } else if (call.arguments['type'] == ListenerEnum.cancel.index) {
             if (isLogEnabled) {
               _logger.d('onCancel : ${call.arguments["id"]}');
             }
-            callbacksById[call.arguments["id"]]!.item4();
+            final callbackId = call.arguments["id"] as int;
+            callbacksById[callbackId]!.item4();
+            _temporalSamples.remove(callbackId);
+            downloadSteps = 0;
+            downloadRate = 0;
+            callbacksById.remove(callbackId);
+          }
+        } else if (call.arguments["id"] as int ==
+            CallbacksEnum.startUploadTesting.index) {
+          if (call.arguments['type'] == ListenerEnum.complete.index) {
+            // For upload, we still use the aggregated value from native
+            // (upload can also benefit from parallel connections in the future)
+            final callbackId = call.arguments["id"] as int;
+            final samples = _temporalSamples[callbackId] ?? [];
+
+            if (samples.isEmpty) {
+              // Fallback: use the final transfer rate directly
+              final transferRateBps = call.arguments['transferRate'] as double;
+              final transferRateMbps = transferRateBps / 1000000.0;
+              callbacksById[callbackId]!
+                  .item3(transferRateMbps, SpeedUnit.mbps);
+            } else {
+              // Discard ramp-up period
+              final rampUpDiscardCount =
+                  (samples.length * RAMP_UP_DISCARD_PERCENT).toInt();
+              final stableSamples = samples.sublist(rampUpDiscardCount);
+
+              if (stableSamples.isEmpty) {
+                final transferRateBps =
+                    call.arguments['transferRate'] as double;
+                final transferRateMbps = transferRateBps / 1000000.0;
+                callbacksById[callbackId]!
+                    .item3(transferRateMbps, SpeedUnit.mbps);
+              } else {
+                final totalThroughput = stableSamples.fold<double>(
+                    0.0, (sum, entry) => sum + entry.value);
+                final averageThroughputBps =
+                    totalThroughput / stableSamples.length;
+                final averageThroughputMbps = averageThroughputBps / 1000000.0;
+
+                if (isLogEnabled) {
+                  _logger.d(
+                      'Final upload: ${stableSamples.length} stable samples');
+                  _logger.d(
+                      'Average aggregated throughput: ${averageThroughputMbps.toStringAsFixed(2)} Mbps');
+                }
+
+                callbacksById[callbackId]!
+                    .item3(averageThroughputMbps, SpeedUnit.mbps);
+              }
+            }
+
+            // Cleanup
+            _temporalSamples.remove(callbackId);
             uploadSteps = 0;
             uploadRate = 0;
-            callbacksById.remove(call.arguments["id"]);
+            callbacksById.remove(callbackId);
+          } else if (call.arguments['type'] == ListenerEnum.error.index) {
+            if (isLogEnabled) {
+              _logger.d('onError : ${call.arguments["speedTestError"]}');
+              _logger.d('onError : ${call.arguments["errorMessage"]}');
+            }
+            final callbackId = call.arguments["id"] as int;
+            callbacksById[callbackId]!.item1(call.arguments['errorMessage'],
+                call.arguments['speedTestError']);
+            // Cleanup on error
+            _temporalSamples.remove(callbackId);
+          } else if (call.arguments['type'] == ListenerEnum.progress.index) {
+            // Store temporal sample for upload (same as download)
+            final callbackId = call.arguments["id"] as int;
+            final transferRateBps = call.arguments['transferRate'] as double;
+            final timestamp = DateTime.now().millisecondsSinceEpoch;
+
+            _temporalSamples[callbackId] ??= [];
+            _temporalSamples[callbackId]!
+                .add(MapEntry(timestamp, transferRateBps));
+
+            final transferRateMbps = transferRateBps / 1000000.0;
+
+            if (isLogEnabled) {
+              _logger.d(
+                  'Upload progress: ${transferRateMbps.toStringAsFixed(2)} Mbps');
+            }
+
+            callbacksById[callbackId]!.item2(
+                call.arguments['percent'].toDouble(),
+                transferRateMbps,
+                SpeedUnit.mbps);
+          } else if (call.arguments['type'] == ListenerEnum.cancel.index) {
+            if (isLogEnabled) {
+              _logger.d('onCancel : ${call.arguments["id"]}');
+            }
+            final callbackId = call.arguments["id"] as int;
+            callbacksById[callbackId]!.item4();
+            _temporalSamples.remove(callbackId);
+            uploadSteps = 0;
+            uploadRate = 0;
+            callbacksById.remove(callbackId);
           }
         }
         break;
 
       case 'callCancelListener':
-      // Clear download and upload progress without starting any tests again
+        // Clear download and upload progress without starting any tests again
         if (isLogEnabled) {
           _logger.d('Cancelling both download and upload testing...');
         }
 
         // Clear download state (without re-starting)
+        _temporalSamples.remove(CallbacksEnum.startDownLoadTesting.index);
         downloadSteps = 0;
         downloadRate = 0;
         // If there's an ongoing download callback, call the cancel function
-        if (callbacksById.containsKey(CallbacksEnum.startDownLoadTesting.index)) {
+        if (callbacksById
+            .containsKey(CallbacksEnum.startDownLoadTesting.index)) {
           callbacksById[CallbacksEnum.startDownLoadTesting.index]!.item4();
         }
 
         // Clear upload state (without re-starting)
+        _temporalSamples.remove(CallbacksEnum.startUploadTesting.index);
         uploadSteps = 0;
         uploadRate = 0;
         // If there's an ongoing upload callback, call the cancel function
@@ -153,14 +262,14 @@ class MethodChannelFlutterInternetSpeedTest
 
       default:
         if (isLogEnabled) {
-          _logger.d('TestFairy: Ignoring invoke from native. This normally shouldn\'t happen.');
+          _logger.d(
+              'TestFairy: Ignoring invoke from native. This normally shouldn\'t happen.');
         }
     }
 
     // Call cancelListening after clearing states
     _channel.invokeMethod("cancelListening", call.arguments["id"]);
   }
-
 
   Future<CancelListening> _startListening(
       Tuple4<ErrorCallback, ProgressCallback, DoneCallback, CancelCallback>
