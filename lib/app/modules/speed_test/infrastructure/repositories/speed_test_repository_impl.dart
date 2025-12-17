@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter_speed_test_plus/flutter_speed_test_plus.dart';
 import '../../domain/entities/speed_result.dart';
 import '../../domain/repositories/ispeed_test_repository.dart';
@@ -7,6 +8,23 @@ import '../../domain/exceptions/speed_test_exception.dart';
 class SpeedTestRepositoryImpl implements ISpeedTestRepository {
   final FlutterInternetSpeedTest _speedTest = FlutterInternetSpeedTest()
     ..enableLog();
+  final Connectivity _connectivity = Connectivity();
+
+  /// Retorna o multiplicador de taxa de download baseado no tipo de rede
+  double _getDownloadRateMultiplier(List<ConnectivityResult> results) {
+    // Lógica de prioridade: Ethernet > Wifi > Mobile > Bluetooth
+    if (results.contains(ConnectivityResult.ethernet) ||
+        results.contains(ConnectivityResult.bluetooth)) {
+      return 2.5;
+    } else if (results.contains(ConnectivityResult.mobile)) {
+      return 3.25;
+    } else if (results.contains(ConnectivityResult.wifi)) {
+      return 3.75;
+    } else {
+      // Valor padrão caso não seja possível determinar o tipo
+      return 2.5;
+    }
+  }
 
   @override
   Future<SpeedResult> runSpeedTest({
@@ -19,7 +37,10 @@ class SpeedTestRepositoryImpl implements ISpeedTestRepository {
     String? serverIp;
     bool isCompleted = false;
 
-    const double downloadRateMultiplier = 2.5;
+    // Obtém o tipo de conexão atual e calcula o multiplicador
+    final connectivityResults = await _connectivity.checkConnectivity();
+    final double downloadRateMultiplier =
+        _getDownloadRateMultiplier(connectivityResults);
 
     try {
       await _speedTest.startTesting(
