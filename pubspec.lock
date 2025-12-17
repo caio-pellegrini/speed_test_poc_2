@@ -294,11 +294,10 @@ packages:
   flutter_speed_test_plus:
     dependency: "direct main"
     description:
-      name: flutter_speed_test_plus
-      sha256: f33aed054665b67f5676567f922fe6fa0397e3a8818a4350306212ac95704404
-      url: "https://pub.dev"
-    source: hosted
-    version: "1.0.10"
+      path: "packages/flutter_speed_test_plus"
+      relative: true
+    source: path
+    version: "1.0.8"
   flutter_test:
     dependency: "direct dev"
     description: flutter
