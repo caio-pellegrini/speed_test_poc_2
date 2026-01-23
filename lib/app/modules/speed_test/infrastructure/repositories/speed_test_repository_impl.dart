@@ -48,8 +48,13 @@ class SpeedTestRepositoryImpl implements ISpeedTestRepository {
         onCompleted: (download, upload) {
           if (!isCompleted) {
             isCompleted = true;
+            // Se o valor do download for menor que 1.5 Mb, usa o valor raw
+            // Caso contrário, aplica o multiplicador
+            final rawDownloadRate = download.transferRate;
             downloadRate = double.parse(
-              (download.transferRate * downloadRateMultiplier)
+              (rawDownloadRate < 1.5
+                      ? rawDownloadRate
+                      : rawDownloadRate * downloadRateMultiplier)
                   .toStringAsPrecision(3),
             );
             uploadRate = double.parse(
@@ -69,8 +74,14 @@ class SpeedTestRepositoryImpl implements ISpeedTestRepository {
         },
         onProgress: (percent, data) {
           if (data.type == TestType.download) {
+            // Se o valor do download for menor que 1.5 Mb, usa o valor raw
+            // Caso contrário, aplica o multiplicador
+            final rawDownloadRate = data.transferRate;
+            print('rawDownloadRate: $rawDownloadRate');
             downloadRate = double.parse(
-              (data.transferRate * downloadRateMultiplier)
+              (rawDownloadRate < 1.5
+                      ? rawDownloadRate
+                      : rawDownloadRate * downloadRateMultiplier)
                   .toStringAsPrecision(3),
             );
           } else {
